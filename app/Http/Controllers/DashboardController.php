@@ -36,17 +36,14 @@ class DashboardController extends Controller
             ->get();
         $totalAccountBalance = (float) $accounts->sum('current_balance');
 
-        $totalReceivable = (float) (DebtReceivable::where('user_id', $user->id)
-            ->receivable()
+        $debtsReceivablesTotals = DebtReceivable::where('user_id', $user->id)
             ->whereIn('status', ['unpaid', 'partially_paid'])
-            ->selectRaw('SUM(amount - paid_amount) as total')
-            ->value('total') ?? 0);
+            ->selectRaw('type, SUM(amount - paid_amount) as total')
+            ->groupBy('type')
+            ->pluck('total', 'type');
 
-        $totalDebt = (float) (DebtReceivable::where('user_id', $user->id)
-            ->debt()
-            ->whereIn('status', ['unpaid', 'partially_paid'])
-            ->selectRaw('SUM(amount - paid_amount) as total')
-            ->value('total') ?? 0);
+        $totalReceivable = (float) ($debtsReceivablesTotals['receivable'] ?? 0);
+        $totalDebt = (float) ($debtsReceivablesTotals['debt'] ?? 0);
 
         $totalNetWorth = $totalAccountBalance + $totalReceivable - $totalDebt;
 
@@ -74,23 +71,24 @@ class DashboardController extends Controller
             ? round((($thisMonthExpense - $lastMonthExpense) / $lastMonthExpense) * 100, 1) 
             : 0;
 
-        // 3. Last 7 Days chart data
+        // 3. Last 7 Days chart data (Combined income & expense in single query)
         $startDate = $now->copy()->subDays(6)->startOfDay();
         $endDate = $now->copy()->endOfDay();
 
-        $incomesGrouped = Transaction::where('user_id', $user->id)
-            ->where('type', 'income')
+        $last7DaysData = Transaction::where('user_id', $user->id)
+            ->whereIn('type', ['income', 'expense'])
             ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
-            ->select(DB::raw('DATE(date) as date_val'), DB::raw('SUM(amount) as total'))
-            ->groupBy('date_val')
-            ->pluck('total', 'date_val');
+            ->select(
+                DB::raw('DATE(date) as date_val'),
+                'type',
+                DB::raw('SUM(amount) as total')
+            )
+            ->groupBy('date_val', 'type')
+            ->get()
+            ->groupBy('type');
 
-        $expensesGrouped = Transaction::where('user_id', $user->id)
-            ->where('type', 'expense')
-            ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
-            ->select(DB::raw('DATE(date) as date_val'), DB::raw('SUM(amount) as total'))
-            ->groupBy('date_val')
-            ->pluck('total', 'date_val');
+        $incomesGrouped = $last7DaysData->get('income', collect())->pluck('total', 'date_val');
+        $expensesGrouped = $last7DaysData->get('expense', collect())->pluck('total', 'date_val');
 
         $last7Days = collect();
         for ($i = 6; $i >= 0; $i--) {

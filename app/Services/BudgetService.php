@@ -22,11 +22,57 @@ class BudgetService
             ->where('month', $month)
             ->get();
 
+        if ($budgets->isEmpty()) {
+            return [
+                'month' => $month,
+                'items' => collect(),
+                'total_budget' => 0,
+                'total_spent' => 0,
+                'total_remaining' => 0,
+                'total_percentage' => 0,
+                'is_over_budget' => false,
+            ];
+        }
+
+        // Fetch subcategories mapping for all budget categories in 1 query
+        $categoryIds = $budgets->pluck('category_id')->unique()->filter()->values()->toArray();
+        $subCategoriesGrouped = Category::whereIn('parent_id', $categoryIds)
+            ->get()
+            ->groupBy('parent_id');
+
+        // Fetch spent amounts for all relevant category IDs in 1 aggregate query
+        $allTargetCategoryIds = collect($categoryIds);
+        foreach ($categoryIds as $catId) {
+            if (isset($subCategoriesGrouped[$catId])) {
+                $allTargetCategoryIds = $allTargetCategoryIds->merge($subCategoriesGrouped[$catId]->pluck('id'));
+            }
+        }
+
+        $spentGrouped = Transaction::where('user_id', $user->id)
+            ->where('type', 'expense')
+            ->whereIn('category_id', $allTargetCategoryIds->unique()->values()->toArray())
+            ->where('date', 'like', $month . '%')
+            ->selectRaw('category_id, SUM(amount) as total')
+            ->groupBy('category_id')
+            ->pluck('total', 'category_id');
+
         $totalBudget = 0;
         $totalSpent = 0;
 
-        $items = $budgets->map(function (Budget $budget) use (&$totalBudget, &$totalSpent) {
-            $spent = $budget->spent_amount;
+        $items = $budgets->map(function (Budget $budget) use ($subCategoriesGrouped, $spentGrouped, &$totalBudget, &$totalSpent) {
+            $catId = $budget->category_id;
+            $catIds = [$catId];
+            if (isset($subCategoriesGrouped[$catId])) {
+                $catIds = array_merge($catIds, $subCategoriesGrouped[$catId]->pluck('id')->toArray());
+            }
+
+            $spent = 0.0;
+            foreach ($catIds as $id) {
+                $spent += (float) ($spentGrouped[$id] ?? 0);
+            }
+
+            $budget->setSpentAmount($spent);
+
             $remaining = $budget->remaining_amount;
             $percentage = $budget->percentage;
             $isOver = $budget->is_over_budget;

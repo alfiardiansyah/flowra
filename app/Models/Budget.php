@@ -32,8 +32,20 @@ class Budget extends Model
         return $this->belongsTo(Category::class);
     }
 
+    protected ?float $spentAmountCache = null;
+
+    public function setSpentAmount(float $amount): self
+    {
+        $this->spentAmountCache = $amount;
+        return $this;
+    }
+
     public function getSpentAmountAttribute(): float
     {
+        if ($this->spentAmountCache !== null) {
+            return $this->spentAmountCache;
+        }
+
         $userId = $this->user_id;
         $categoryId = $this->category_id;
         $month = $this->month; // 'YYYY-MM'
@@ -43,7 +55,7 @@ class Budget extends Model
         $subCategoryIds = Category::where('parent_id', $categoryId)->pluck('id')->toArray();
         $allCategoryIds = array_merge($categoryIds, $subCategoryIds);
 
-        return (float) Transaction::where('user_id', $userId)
+        return $this->spentAmountCache = (float) Transaction::where('user_id', $userId)
             ->where('type', 'expense')
             ->whereIn('category_id', $allCategoryIds)
             ->where('date', 'like', $month . '%')
