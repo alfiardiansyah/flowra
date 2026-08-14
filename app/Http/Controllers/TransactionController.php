@@ -61,10 +61,16 @@ class TransactionController extends Controller
             });
         }
 
-        // Summary for current filter query
+        // Summary for current filter query (consolidated into 1 single query)
         $summaryQuery = clone $query;
-        $totalIncomes = (float) (clone $summaryQuery)->where('type', 'income')->sum('amount');
-        $totalExpenses = (float) (clone $summaryQuery)->where('type', 'expense')->sum('amount');
+        $typeTotals = (clone $summaryQuery)
+            ->whereIn('type', ['income', 'expense'])
+            ->selectRaw('type, SUM(amount) as total')
+            ->groupBy('type')
+            ->pluck('total', 'type');
+
+        $totalIncomes = (float) ($typeTotals['income'] ?? 0);
+        $totalExpenses = (float) ($typeTotals['expense'] ?? 0);
         $netAmount = $totalIncomes - $totalExpenses;
 
         $transactions = $query->orderByDesc('date')
