@@ -48,7 +48,7 @@ RUN apk add --no-cache \
     bash \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
-        pdo \
+        pgsql \
         pdo_pgsql \
         pdo_mysql \
         bcmath \
@@ -74,6 +74,19 @@ RUN { \
         echo 'expose_php=Off'; \
     } > /usr/local/etc/php/conf.d/production.ini
 
+# Configure PHP-FPM for Container Environment (pass container env vars and log to stderr)
+RUN { \
+        echo '[global]'; \
+        echo 'error_log = /proc/self/fd/2'; \
+        echo 'log_limit = 8192'; \
+        echo '[www]'; \
+        echo 'clear_env = no'; \
+        echo 'catch_workers_output = yes'; \
+        echo 'decorate_workers_output = no'; \
+        echo 'php_admin_flag[log_errors] = on'; \
+        echo 'php_admin_value[error_log] = /proc/self/fd/2'; \
+    } > /usr/local/etc/php-fpm.d/zz-docker.conf
+
 WORKDIR /var/www/html
 
 # Copy application source from composer builder
@@ -82,16 +95,17 @@ COPY --from=composer-builder /app /var/www/html
 # Copy compiled Vite frontend assets from frontend builder
 COPY --from=frontend-builder /app/public/build /var/www/html/public/build
 
-# Copy Nginx server configuration and startup entrypoint
-COPY docker/nginx.conf /etc/nginx/http.d/default.conf
+# Copy Nginx server configuration template and startup entrypoint
+COPY docker/nginx.conf /var/www/html/docker/nginx.conf
 COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
-    && mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chown -R www-data:www-data /var/www/html \
+    && mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache /tmp/storage /tmp/bootstrap \
+    && chown -R www-data:www-data /var/www/html /tmp/storage /tmp/bootstrap \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Dynamic port binding for Vercel ($PORT)
+# Default port if not provided by Vercel
+ENV PORT=8080
 EXPOSE 8080
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

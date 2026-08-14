@@ -17,10 +17,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
         //
     })->create();
 
-// Dynamic storage path for Vercel serverless environment
-if (isset($_ENV['VERCEL']) || getenv('VERCEL') || (isset($_SERVER['VERCEL']) && $_SERVER['VERCEL']) || getenv('APP_STORAGE_PATH')) {
-    $storagePath = getenv('APP_STORAGE_PATH') ?: '/tmp/storage';
-    $app->useStoragePath($storagePath);
+// Dynamic storage path if APP_STORAGE_PATH is specified
+if (getenv('APP_STORAGE_PATH')) {
+    $app->useStoragePath(getenv('APP_STORAGE_PATH'));
 }
 
 return $app;
