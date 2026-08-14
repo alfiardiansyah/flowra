@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>Flowra — {{ config('app.name', 'Grow Your Wealth Naturally') }}</title>
+    <title>Flowra — Kelola Keuanganmu!</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/icons/sprout.png') }}">
+    <link rel="shortcut icon" href="{{ asset('images/icons/sprout.png') }}">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

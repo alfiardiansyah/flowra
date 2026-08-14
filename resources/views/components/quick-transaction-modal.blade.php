@@ -53,8 +53,8 @@ class="relative z-50">
                     <x-icon name="add-seed" class="w-6 h-6 text-sage-500" />
                     <h3 class="font-heading text-xl text-sage-700">Catat Transaksi Cepat</h3>
                 </div>
-                <button type="button" @click="open = false" class="text-earth-400 hover:text-earth-600 p-1 rounded-lg hover:bg-sage-50 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                <button type="button" @click.stop.prevent="open = false" aria-label="Tutup" class="text-earth-400 hover:text-earth-600 p-1.5 rounded-lg hover:bg-sage-100 transition-colors cursor-pointer relative z-20">
+                    <svg class="w-6 h-6 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
 

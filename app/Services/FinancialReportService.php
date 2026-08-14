@@ -12,27 +12,56 @@ use Illuminate\Support\Facades\DB;
 class FinancialReportService
 {
     /**
-     * Generate complete financial report for given date range.
+     * Generate complete financial report for given date range and optional filters.
      */
-    public function generateReport(User $user, string $from, string $to): array
-    {
+    public function generateReport(
+        User $user, 
+        string $from, 
+        string $to, 
+        ?int $accountId = null, 
+        ?int $categoryId = null, 
+        ?string $search = null
+    ): array {
         $userId = $user->id;
 
+        // Base transaction query for the period with user isolation
+        $baseQuery = function () use ($userId, $from, $to, $accountId, $categoryId, $search) {
+            $query = Transaction::where('transactions.user_id', $userId)
+                ->whereBetween('transactions.date', [$from, $to]);
+
+            if ($accountId) {
+                $query->where(function ($q) use ($accountId) {
+                    $q->where('transactions.account_id', $accountId)
+                      ->orWhere('transactions.destination_account_id', $accountId);
+                });
+            }
+
+            if ($categoryId) {
+                $query->where('transactions.category_id', $categoryId);
+            }
+
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('transactions.description', 'LIKE', "%{$search}%")
+                      ->orWhere('transactions.notes', 'LIKE', "%{$search}%");
+                });
+            }
+
+            return $query;
+        };
+
         // 1. Incomes & Expenses (Transfers strictly excluded!)
-        $totalIncome = (float) Transaction::where('user_id', $userId)
+        $totalIncome = (float) $baseQuery()
             ->where('type', 'income')
-            ->whereBetween('date', [$from, $to])
             ->sum('amount');
 
-        $totalExpense = (float) Transaction::where('user_id', $userId)
+        $totalExpense = (float) $baseQuery()
             ->where('type', 'expense')
-            ->whereBetween('date', [$from, $to])
             ->sum('amount');
 
         $netCashFlow = $totalIncome - $totalExpense;
 
-        // 2. Opening Balance calculation:
-        // Sum of all initial opening balances of user's accounts + all incomes before $from - all expenses before $from
+        // 2. Opening Balance calculation
         $accountsOpening = (float) Account::where('user_id', $userId)->where('is_active', true)->sum('opening_balance');
         $priorIncomes = (float) Transaction::where('user_id', $userId)->where('type', 'income')->where('date', '<', $from)->sum('amount');
         $priorExpenses = (float) Transaction::where('user_id', $userId)->where('type', 'expense')->where('date', '<', $from)->sum('amount');
@@ -40,9 +69,8 @@ class FinancialReportService
         $closingBalance = $openingBalance + $netCashFlow;
 
         // 3. Category Breakdown (Expenses)
-        $expensesByCategory = Transaction::where('transactions.user_id', $userId)
+        $expensesByCategory = $baseQuery()
             ->where('transactions.type', 'expense')
-            ->whereBetween('transactions.date', [$from, $to])
             ->leftJoin('categories', 'transactions.category_id', '=', 'categories.id')
             ->select(
                 DB::raw("COALESCE(categories.name, 'Lainnya') as name"),
@@ -68,9 +96,8 @@ class FinancialReportService
             });
 
         // 4. Category Breakdown (Incomes)
-        $incomesByCategory = Transaction::where('transactions.user_id', $userId)
+        $incomesByCategory = $baseQuery()
             ->where('transactions.type', 'income')
-            ->whereBetween('transactions.date', [$from, $to])
             ->leftJoin('categories', 'transactions.category_id', '=', 'categories.id')
             ->select(
                 DB::raw("COALESCE(categories.name, 'Lainnya') as name"),
@@ -116,14 +143,20 @@ class FinancialReportService
             ];
         });
 
-        // 6. Monthly Trend (last 6 months or based on range)
+        // 6. Detailed Transactions Ledger for Period
+        $transactions = $baseQuery()
+            ->with(['account', 'destinationAccount', 'category'])
+            ->orderBy('date')
+            ->orderBy('id')
+            ->get();
+
+        // 7. Monthly / Daily Trend
         $fromDate = Carbon::parse($from);
         $toDate = Carbon::parse($to);
         $diffMonths = $fromDate->diffInMonths($toDate);
 
         $trendData = collect();
         if ($diffMonths <= 1) {
-            // Daily trend
             $cursor = $fromDate->copy();
             while ($cursor->lte($toDate)) {
                 $dateKey = $cursor->format('Y-m-d');
@@ -140,7 +173,6 @@ class FinancialReportService
                 $cursor->addDay();
             }
         } else {
-            // Monthly trend
             $cursor = $fromDate->copy()->startOfMonth();
             $endMonth = $toDate->copy()->endOfMonth();
             while ($cursor->lte($endMonth)) {
@@ -170,6 +202,7 @@ class FinancialReportService
             'expenses_by_category' => $expensesByCategory,
             'incomes_by_category' => $incomesByCategory,
             'accounts' => $accounts,
+            'transactions' => $transactions,
             'trend_data' => $trendData,
             'savings_rate' => $totalIncome > 0 ? round((max(0, $netCashFlow) / $totalIncome) * 100, 1) : 0,
         ];

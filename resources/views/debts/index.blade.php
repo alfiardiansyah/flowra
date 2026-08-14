@@ -8,15 +8,11 @@
                 </h2>
                 <p class="mt-1 text-earth-600 text-sm">Pantau kewajiban pinjaman dan tagihan kepada orang lain dengan rapi</p>
             </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('debts.create', ['type' => 'debt']) }}" class="btn-flora-secondary text-sm flex items-center gap-1.5">
-                    <x-icon name="falling-leaves" class="w-4 h-4 text-coral-500" />
-                    <span>+ Catat Hutang</span>
-                </a>
-                <a href="{{ route('debts.create', ['type' => 'receivable']) }}" class="btn-flora-primary text-sm flex items-center gap-1.5">
-                    <x-icon name="sprout" class="w-4 h-4 text-white" />
-                    <span>+ Catat Piutang</span>
-                </a>
+            <div>
+                <button @click="$dispatch('open-debt-modal', { type: 'debt' })" class="btn-flora-primary text-sm flex items-center gap-2 shadow-sm py-2 px-4">
+                    <x-icon name="leaf" class="w-4 h-4 text-white" />
+                    <span>+ Catat Hutang & Piutang</span>
+                </button>
             </div>
         </div>
     </x-slot>
@@ -142,10 +138,15 @@
                          style="display: none;" 
                          class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4">
                         <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="open = false"></div>
-                        <div class="flora-card max-w-md w-full bg-white shadow-2xl relative z-10 p-6 border border-sage-200">
-                            <h3 class="font-heading text-lg font-semibold text-sage-700 mb-2">
-                                Catat Pembayaran {{ $debt->type === 'debt' ? 'Hutang ke' : 'Piutang dari' }} {{ $debt->person_name }}
-                            </h3>
+                        <div class="flora-card max-w-md w-full bg-white shadow-2xl relative z-10 p-6 border border-sage-200" @click.stop>
+                            <div class="flex items-center justify-between pb-3 border-b border-sage-100 mb-3">
+                                <h3 class="font-heading text-lg font-semibold text-sage-700">
+                                    Catat Pembayaran {{ $debt->type === 'debt' ? 'Hutang ke' : 'Piutang dari' }} {{ $debt->person_name }}
+                                </h3>
+                                <button type="button" @click.stop.prevent="open = false" aria-label="Tutup" class="text-earth-400 hover:text-earth-600 p-1 rounded-lg hover:bg-sage-100 transition-colors cursor-pointer relative z-20">
+                                    <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
                             <p class="text-xs text-earth-600 mb-4">Sisa yang harus diselesaikan: <span class="font-bold text-earth-800">Rp {{ number_format($debt->remaining_amount, 0, ',', '.') }}</span></p>
 
                             <form action="{{ route('debts.payment', $debt) }}" method="POST" class="space-y-4">
@@ -181,10 +182,19 @@
             @endforeach
         </div>
     @else
-        <x-empty-state 
-            title="Belum Ada Catatan Hutang / Piutang" 
-            description="Catat pinjaman yang Anda berikan atau terima untuk melacak tanggal jatuh tempo dan pembayarannya."
-            :action="route('debts.create')"
-            action-label="+ Catat Hutang / Piutang Baru" />
+        <div class="flora-card p-8 sm:p-12 text-center max-w-lg mx-auto">
+            <x-icon name="leaf" class="w-12 h-12 text-sage-400 mx-auto mb-3" />
+            <h3 class="font-heading text-xl font-bold text-sage-700 mb-1">Belum Ada Catatan Hutang / Piutang</h3>
+            <p class="text-xs sm:text-sm text-earth-600 mb-6">Catat pinjaman yang Anda berikan atau terima untuk melacak tanggal jatuh tempo dan pembayarannya.</p>
+            <div>
+                <button @click="$dispatch('open-debt-modal', { type: 'debt' })" class="btn-flora-primary text-xs sm:text-sm py-2.5 px-6 flex items-center gap-2 mx-auto shadow-sm">
+                    <x-icon name="leaf" class="w-4 h-4 text-white" />
+                    <span>+ Catat Hutang & Piutang Baru</span>
+                </button>
+            </div>
+        </div>
     @endif
+
+    <!-- Popup Modal Catat Hutang & Piutang Component -->
+    <x-debt-modal :accounts="$accounts" />
 </x-app-layout>

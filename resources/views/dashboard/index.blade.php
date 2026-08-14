@@ -110,33 +110,46 @@
 
     <!-- Accounts Quick Grid -->
     <div class="mb-8">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="font-heading text-lg text-sage-700 flex items-center gap-2">
-                <x-icon name="cash-leaf" class="w-5 h-5 text-sage-500" />
-                Rekening & Dompet Saya
-            </h3>
-            <a href="{{ route('accounts.index') }}" class="text-xs font-medium text-sage-600 hover:text-sage-700 hover:underline">
-                Kelola Semua Rekening →
+        <div class="flex items-center justify-between mb-3">
+            <div>
+                <h3 class="font-heading text-lg text-sage-700 flex items-center gap-2">
+                    <x-icon name="cash-leaf" class="w-5 h-5 text-sage-500" />
+                    Rekening & Dompet Saya
+                </h3>
+                <p class="text-xs text-earth-500 mt-0.5">Diurutkan berdasarkan saldo terbesar</p>
+            </div>
+            <a href="{{ route('accounts.index') }}" class="text-xs font-semibold text-sage-600 hover:text-sage-800 hover:underline flex items-center gap-1">
+                <span>Kelola Semua Rekening ({{ $accounts->count() }})</span>
+                <span>→</span>
             </a>
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            @foreach($accounts->take(5) as $acc)
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+            @foreach($accounts->take(4) as $acc)
                 <a href="{{ route('accounts.show', $acc) }}" 
-                   class="flora-card p-4 hover:shadow-flora-lg hover:-translate-y-0.5 transition-all duration-200 block border-l-4"
+                   class="flora-card p-3.5 hover:shadow-flora-lg hover:-translate-y-0.5 transition-all duration-200 block border-l-4"
                    style="border-left-color: {{ $acc->color }}">
-                    <div class="flex items-center justify-between mb-2">
-                        <x-icon :name="$acc->icon" class="w-6 h-6" />
-                        <span class="text-[10px] text-earth-400 font-medium uppercase">{{ $acc->type }}</span>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <x-icon :name="$acc->icon" class="w-5 h-5" />
+                        <span class="text-[10px] text-earth-400 font-medium uppercase truncate">{{ $acc->type }}</span>
                     </div>
-                    <div class="font-semibold text-sm text-earth-800 truncate mb-1">{{ $acc->name }}</div>
-                    <div class="text-xs font-bold text-sage-600">Rp {{ number_format($acc->current_balance, 0, ',', '.') }}</div>
+                    <div class="font-semibold text-xs text-earth-800 truncate mb-1" title="{{ $acc->name }}">{{ $acc->name }}</div>
+                    <div class="text-xs font-bold text-sage-700">Rp {{ number_format($acc->current_balance, 0, ',', '.') }}</div>
                 </a>
             @endforeach
-            <a href="{{ route('accounts.create') }}" 
-               class="flora-card p-4 border-2 border-dashed border-sage-300 hover:border-sage-400 flex flex-col items-center justify-center text-center text-sage-600 hover:bg-sage-50/50 transition-all duration-200">
-                <x-icon name="plus" class="w-5 h-5 mb-1" />
-                <span class="text-xs font-medium">+ Tambah Rekening</span>
-            </a>
+
+            @if($accounts->count() > 4)
+                <a href="{{ route('accounts.index') }}" 
+                   class="flora-card p-3.5 border border-sage-200 bg-sage-50/50 hover:bg-sage-100/70 hover:shadow-sm flex flex-col items-center justify-center text-center text-sage-700 transition-all duration-200">
+                    <span class="text-xs font-bold">+{{ $accounts->count() - 4 }} Rekening Lainnya</span>
+                    <span class="text-[10px] text-earth-500 mt-0.5">Lihat Selengkapnya →</span>
+                </a>
+            @else
+                <a href="{{ route('accounts.create') }}" 
+                   class="flora-card p-3.5 border-2 border-dashed border-sage-300 hover:border-sage-400 flex flex-col items-center justify-center text-center text-sage-600 hover:bg-sage-50/50 transition-all duration-200">
+                    <x-icon name="plus" class="w-4 h-4 mb-1" />
+                    <span class="text-xs font-medium">+ Tambah Rekening</span>
+                </a>
+            @endif
         </div>
     </div>
 

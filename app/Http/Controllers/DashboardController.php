@@ -32,7 +32,7 @@ class DashboardController extends Controller
         // 1. Total Net Worth: Accounts Balance + Outstanding Receivables (Assets) - Outstanding Debts (Liabilities)
         $accounts = Account::where('user_id', $user->id)
             ->where('is_active', true)
-            ->orderBy('name')
+            ->orderByDesc('current_balance')
             ->get();
         $totalAccountBalance = (float) $accounts->sum('current_balance');
 

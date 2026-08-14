@@ -3,7 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Flowra — Kelola Keuangan Pribadi dengan Ketenangan Kebun Asri</title>
+    <title>Flowra — Kelola Keuanganmu!</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/icons/sprout.png') }}">
+    <link rel="shortcut icon" href="{{ asset('images/icons/sprout.png') }}">
     <meta name="description" content="Flowra adalah aplikasi manajemen keuangan pribadi modern dengan multi-rekening, anggaran bulanan, transaksi rutin, pencatatan hutang piutang, dan laporan arus kas yang intuitif.">
 
     <!-- Google Fonts -->
@@ -46,7 +48,6 @@
                 <a href="#fitur" class="hover:text-sage-600 transition-colors">Fitur Unggulan</a>
                 <a href="#demo-live" class="hover:text-sage-600 transition-colors">Demo Dashboard</a>
                 <a href="#simulasi" class="hover:text-sage-600 transition-colors">Kalkulator Kebun</a>
-                <a href="#keunggulan" class="hover:text-sage-600 transition-colors">Keunggulan</a>
             </nav>
 
             <!-- Auth CTA Buttons -->
@@ -78,10 +79,6 @@
 
         <!-- 1. Hero Section -->
         <section class="pt-12 pb-20 md:pt-20 md:pb-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-sage-100/80 border border-sage-200 text-sage-700 text-xs font-semibold uppercase tracking-wider mb-6 shadow-sm">
-                <x-icon name="flower" class="w-4 h-4 text-sage-500 animate-spin-slow" />
-                <span>Sistem Manajemen Finansial Pribadi Modern</span>
-            </div>
 
             <h1 class="font-heading text-4xl sm:text-5xl lg:text-6xl text-sage-800 font-bold max-w-4xl mx-auto leading-tight sm:leading-tight lg:leading-tight">
                 Tumbuhkan & Rawat Finansial Anda Seperti <span class="text-sage-600 underline decoration-mint-400 decoration-wavy decoration-2">Kebun yang Asri</span>
@@ -168,11 +165,13 @@
                         this.cashBalance = 1750000;
                         this.gopayBalance = 850000;
                         this.foodSpent = 1250000;
-                        this.simulatedTx = [
-                            { desc: 'Gaji Bulanan', type: 'income', amount: 8500000, acc: 'BCA', cat: 'Gaji', time: 'Hari ini' },
-                            { desc: 'Belanja Supermarket', type: 'expense', amount: 350000, acc: 'BCA', cat: 'Makanan', time: 'Kemarin' },
-                            { desc: 'Kopi & Snack', type: 'expense', amount: 45000, acc: 'GoPay', cat: 'Kopi & Camilan', time: '2 hari lalu' }
-                        ];
+                        if (Array.isArray(this.simulatedTx)) {
+                            this.simulatedTx.splice(0, this.simulatedTx.length,
+                                { desc: 'Gaji Bulanan', type: 'income', amount: 8500000, acc: 'BCA', cat: 'Gaji', time: 'Hari ini' },
+                                { desc: 'Belanja Supermarket', type: 'expense', amount: 350000, acc: 'BCA', cat: 'Makanan', time: 'Kemarin' },
+                                { desc: 'Kopi & Snack', type: 'expense', amount: 45000, acc: 'GoPay', cat: 'Kopi & Camilan', time: '2 hari lalu' }
+                            );
+                        }
                     }
                  }">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -197,15 +196,15 @@
 
                         <!-- Live Demo Controls -->
                         <div class="flex flex-wrap items-center gap-2">
-                            <button @click="addMockIncome()" class="btn-flora-primary text-xs py-2 px-3 flex items-center gap-1.5" title="Simulasi Pemasukan">
+                            <button type="button" @click="addMockIncome()" class="btn-flora-primary text-xs py-2 px-3 flex items-center gap-1.5" title="Simulasi Pemasukan">
                                 <x-icon name="sprout" class="w-3.5 h-3.5 text-white" />
                                 <span>+ Simulasi Pemasukan</span>
                             </button>
-                            <button @click="addMockExpense()" class="bg-coral-500 hover:bg-coral-600 text-white font-medium text-xs py-2 px-3 rounded-xl transition-all flex items-center gap-1.5" title="Simulasi Pengeluaran">
+                            <button type="button" @click="addMockExpense()" class="bg-coral-500 hover:bg-coral-600 text-white font-medium text-xs py-2 px-3 rounded-xl transition-all flex items-center gap-1.5" title="Simulasi Pengeluaran">
                                 <x-icon name="falling-leaves" class="w-3.5 h-3.5 text-white" />
                                 <span>- Simulasi Pengeluaran</span>
                             </button>
-                            <button @click="resetDemo()" class="btn-flora-secondary text-xs py-2 px-2.5" title="Reset Demo">
+                            <button type="button" @click.prevent="resetDemo()" class="btn-flora-secondary text-xs py-2 px-2.5" title="Reset Demo">
                                 ↺ Reset
                             </button>
                         </div>

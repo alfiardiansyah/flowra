@@ -5,7 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>FLOWRA - {{ config('app.name', 'Grow Your Wealth Naturally') }}</title>
+        <title>Flowra — Kelola Keuanganmu!</title>
+        <link rel="icon" type="image/png" href="{{ asset('images/icons/sprout.png') }}">
+        <link rel="shortcut icon" href="{{ asset('images/icons/sprout.png') }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -171,7 +173,7 @@
             </aside>
 
             <!-- Main Content Area -->
-            <div class="flex-1 lg:ml-64 flex flex-col min-h-screen">
+            <div class="flex-1 lg:ml-64 flex flex-col min-h-screen min-w-0 max-w-full overflow-x-hidden">
                 <!-- Top Navigation (Mobile) -->
                 <nav class="lg:hidden bg-white/95 backdrop-blur-md border-b border-sage-200 sticky top-0 z-30 px-4 py-3 flex items-center justify-between shadow-sm">
                     <a href="{{ route('dashboard') }}" class="flex items-center gap-2">
@@ -307,7 +309,7 @@
                 </div>
 
                 <!-- Page Main Slot -->
-                <main class="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full pb-24 lg:pb-8">
+                <main class="flex-1 p-3 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full min-w-0 pb-24 lg:pb-8">
                     {{ $slot }}
                 </main>
 
