@@ -110,9 +110,9 @@ class DashboardController extends Controller
             ->whereBetween('transactions.date', [$startOfMonth, $endOfMonth])
             ->leftJoin('categories', 'transactions.category_id', '=', 'categories.id')
             ->select(
-                DB::raw('COALESCE(categories.name, "Lainnya") as kategori'),
+                DB::raw("COALESCE(categories.name, 'Lainnya') as kategori"),
                 DB::raw('SUM(transactions.amount) as total'),
-                DB::raw('COALESCE(categories.color, "#FF6B6B") as color')
+                DB::raw("COALESCE(categories.color, '#FF6B6B') as color")
             )
             ->groupBy('categories.name', 'categories.color')
             ->orderByDesc('total')

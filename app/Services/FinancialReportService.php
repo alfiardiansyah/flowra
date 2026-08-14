@@ -45,9 +45,9 @@ class FinancialReportService
             ->whereBetween('transactions.date', [$from, $to])
             ->leftJoin('categories', 'transactions.category_id', '=', 'categories.id')
             ->select(
-                DB::raw('COALESCE(categories.name, "Lainnya") as name'),
-                DB::raw('COALESCE(categories.icon, "mixed-leaves") as icon'),
-                DB::raw('COALESCE(categories.color, "#FF6B6B") as color'),
+                DB::raw("COALESCE(categories.name, 'Lainnya') as name"),
+                DB::raw("COALESCE(categories.icon, 'mixed-leaves') as icon"),
+                DB::raw("COALESCE(categories.color, '#FF6B6B') as color"),
                 DB::raw('SUM(transactions.amount) as total'),
                 DB::raw('COUNT(transactions.id) as count')
             )
@@ -73,9 +73,9 @@ class FinancialReportService
             ->whereBetween('transactions.date', [$from, $to])
             ->leftJoin('categories', 'transactions.category_id', '=', 'categories.id')
             ->select(
-                DB::raw('COALESCE(categories.name, "Lainnya") as name'),
-                DB::raw('COALESCE(categories.icon, "bouquet") as icon'),
-                DB::raw('COALESCE(categories.color, "#87A96B") as color'),
+                DB::raw("COALESCE(categories.name, 'Lainnya') as name"),
+                DB::raw("COALESCE(categories.icon, 'bouquet') as icon"),
+                DB::raw("COALESCE(categories.color, '#87A96B') as color"),
                 DB::raw('SUM(transactions.amount) as total'),
                 DB::raw('COUNT(transactions.id) as count')
             )
