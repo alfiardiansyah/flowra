@@ -2,84 +2,195 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\Account;
+use App\Models\Category;
 use App\Models\Income;
+use App\Models\Transaction;
+use App\Services\TransactionService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class IncomeController extends Controller
 {
     use AuthorizesRequests;
 
+    public function __construct(
+        protected TransactionService $transactionService
+    ) {}
+
     public function index(Request $request)
     {
-        $query = auth()->user()->incomes()->latest();
-        
+        $user = auth()->user();
+        $query = Transaction::with(['account', 'category'])
+            ->where('user_id', $user->id)
+            ->where('type', 'income')
+            ->orderByDesc('date')
+            ->orderByDesc('id');
+
         if ($request->filled('search')) {
-            $query->where(function($q) use ($request) {
-                $q->where('keterangan', 'like', '%' . $request->search . '%')
-                  ->orWhere('kategori', 'like', '%' . $request->search . '%');
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                  ->orWhere('notes', 'like', "%{$search}%");
             });
         }
-        
+
         if ($request->filled('kategori')) {
-            $query->where('kategori', $request->kategori);
+            $catName = $request->kategori;
+            $query->whereHas('category', function ($q) use ($catName) {
+                $q->where('name', $catName);
+            });
         }
-        
-        $incomes = $query->paginate(12);
-        return view('incomes.index', compact('incomes'));
+
+        $incomes = $query->paginate(12)->withQueryString();
+        $categories = Category::forUser($user->id)->income()->get();
+
+        return view('incomes.index', compact('incomes', 'categories'));
     }
 
     public function create()
     {
-        return view('incomes.create');
+        $user = auth()->user();
+        $accounts = Account::where('user_id', $user->id)->where('is_active', true)->get();
+        $categories = Category::forUser($user->id)->income()->get();
+
+        return view('incomes.create', compact('accounts', 'categories'));
     }
 
     public function store(Request $request)
     {
+        $user = auth()->user();
+
         $data = $request->validate([
-            'nominal' => 'required|numeric',
-            'keterangan' => 'nullable|string',
-            'kategori' => 'nullable|string',
+            'nominal' => 'required|numeric|min:0.01',
+            'keterangan' => 'nullable|string|max:255',
+            'kategori' => 'nullable|string|max:100',
             'tanggal' => 'nullable|date',
-            'nama_bank' => 'nullable|string',
-            'bukti_transfer' => 'nullable|file|image|max:2048',
+            'nama_bank' => 'nullable|string|max:100',
+            'bukti_transfer' => 'nullable|file|image|max:3072',
+            'account_id' => 'nullable|exists:accounts,id',
+            'category_id' => 'nullable|exists:categories,id',
         ]);
-        if($request->hasFile('bukti_transfer')){
-            $data['bukti_transfer'] = $request->file('bukti_transfer')->store('proofs','public');
+
+        $attachment = null;
+        if ($request->hasFile('bukti_transfer')) {
+            $attachment = $request->file('bukti_transfer')->store('proofs', 'public');
         }
-        $data['user_id'] = auth()->id();
-        Income::create($data);
-        return redirect()->route('incomes.index')->with('success','Your income has bloomed!');
+
+        // Determine account
+        $accountId = $data['account_id'] ?? null;
+        if (!$accountId) {
+            $bankName = $data['nama_bank'] ?? 'Tunai';
+            $acc = Account::where('user_id', $user->id)
+                ->where(function ($q) use ($bankName) {
+                    $q->where('name', 'like', "%{$bankName}%")
+                      ->orWhere('type', strtolower($bankName));
+                })->first();
+
+            if (!$acc) {
+                $acc = Account::where('user_id', $user->id)->first() ?? Account::create([
+                    'user_id' => $user->id,
+                    'name' => 'Dompet Tunai',
+                    'type' => 'cash',
+                    'opening_balance' => 0,
+                    'current_balance' => 0,
+                ]);
+            }
+            $accountId = $acc->id;
+        }
+
+        // Determine category
+        $categoryId = $data['category_id'] ?? null;
+        if (!$categoryId && !empty($data['kategori'])) {
+            $cat = Category::forUser($user->id)->income()->where('name', $data['kategori'])->first();
+            if (!$cat) {
+                $cat = Category::forUser($user->id)->where('name', 'like', "%{$data['kategori']}%")->first();
+            }
+            $categoryId = $cat?->id;
+        }
+
+        try {
+            $this->transactionService->createTransaction($user, [
+                'type' => 'income',
+                'account_id' => $accountId,
+                'category_id' => $categoryId,
+                'amount' => $data['nominal'],
+                'date' => $data['tanggal'] ?? now()->format('Y-m-d'),
+                'description' => $data['keterangan'] ?: ($data['kategori'] ?? 'Pemasukan'),
+                'attachment' => $attachment,
+            ]);
+
+            return redirect()->route('incomes.index')->with('success', 'Pemasukan berhasil dicatat di kebun keuangan Anda!');
+        } catch (\Throwable $e) {
+            return back()->withInput()->with('error', 'Gagal mencatat pemasukan: ' . $e->getMessage());
+        }
     }
 
-    public function edit(Income $income)
+    public function edit(Transaction $income)
     {
-        $this->authorize('view', $income);
-        return view('incomes.edit', compact('income'));
+        $this->authorizeTransaction($income);
+        $user = auth()->user();
+        $accounts = Account::where('user_id', $user->id)->where('is_active', true)->get();
+        $categories = Category::forUser($user->id)->income()->get();
+
+        return view('incomes.edit', compact('income', 'accounts', 'categories'));
     }
 
-    public function update(Request $request, Income $income)
+    public function update(Request $request, Transaction $income)
     {
-        $this->authorize('update', $income);
+        $this->authorizeTransaction($income);
+        $user = auth()->user();
+
         $data = $request->validate([
-            'nominal' => 'required|numeric',
-            'keterangan' => 'nullable|string',
-            'kategori' => 'nullable|string',
+            'nominal' => 'required|numeric|min:0.01',
+            'keterangan' => 'nullable|string|max:255',
+            'kategori' => 'nullable|string|max:100',
             'tanggal' => 'nullable|date',
-            'nama_bank' => 'nullable|string',
-            'bukti_transfer' => 'nullable|file|image|max:2048',
+            'nama_bank' => 'nullable|string|max:100',
+            'bukti_transfer' => 'nullable|file|image|max:3072',
+            'account_id' => 'nullable|exists:accounts,id',
+            'category_id' => 'nullable|exists:categories,id',
         ]);
-        if($request->hasFile('bukti_transfer')){
-            $data['bukti_transfer'] = $request->file('bukti_transfer')->store('proofs','public');
+
+        $updateData = [
+            'amount' => $data['nominal'],
+            'date' => $data['tanggal'] ?? $income->date,
+            'description' => $data['keterangan'] ?: ($data['kategori'] ?? $income->description),
+        ];
+
+        if (!empty($data['account_id'])) {
+            $updateData['account_id'] = $data['account_id'];
         }
-        $income->update($data);
-        return redirect()->route('incomes.index')->with('success','Income updated successfully');
+        if (!empty($data['category_id'])) {
+            $updateData['category_id'] = $data['category_id'];
+        } elseif (!empty($data['kategori'])) {
+            $cat = Category::forUser($user->id)->income()->where('name', $data['kategori'])->first();
+            if ($cat) $updateData['category_id'] = $cat->id;
+        }
+
+        if ($request->hasFile('bukti_transfer')) {
+            $updateData['attachment'] = $request->file('bukti_transfer')->store('proofs', 'public');
+        }
+
+        $this->transactionService->updateTransaction($income, $updateData);
+
+        return redirect()->route('incomes.index')->with('success', 'Pemasukan berhasil diperbarui!');
     }
 
-    public function destroy(Income $income)
+    public function destroy(Transaction $income)
     {
-        $this->authorize('delete', $income);
-        $income->delete();
-        return back()->with('success','Income removed');
+        $this->authorizeTransaction($income);
+
+        $this->transactionService->deleteTransaction($income);
+
+        return back()->with('success', 'Pemasukan berhasil dihapus.');
+    }
+
+    protected function authorizeTransaction(Transaction $transaction): void
+    {
+        if ($transaction->user_id !== auth()->id()) {
+            abort(403, 'Akses tidak diizinkan.');
+        }
     }
 }

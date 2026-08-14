@@ -84,7 +84,22 @@
 
     /* Flora Sidebar */
     .flora-sidebar {
-        @apply bg-flora-gradient min-h-screen w-64 fixed left-0 top-0 shadow-flora-lg z-40;
+        background: linear-gradient(180deg, #445542 0%, #364434 50%, #2A3629 100%);
+        box-shadow: 4px 0 24px -4px rgba(0, 0, 0, 0.18);
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
     }
 
     /* Floating Action Button */

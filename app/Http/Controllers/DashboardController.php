@@ -2,93 +2,172 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Income;
-use App\Models\Expense;
-use Illuminate\Support\Facades\DB;
+use App\Models\Account;
+use App\Models\Budget;
+use App\Models\Category;
+use App\Models\DebtReceivable;
+use App\Models\RecurringTransaction;
+use App\Models\Transaction;
+use App\Services\BudgetService;
+use App\Services\RecurringTransactionService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        protected BudgetService $budgetService,
+        protected RecurringTransactionService $recurringService
+    ) {}
+
     public function index()
     {
         $user = auth()->user();
-        
-        // Calculate totals
-        $totalIncome = $user->incomes()->sum('nominal');
-        $totalExpense = $user->expenses()->sum('nominal');
-        $totalSaldo = $totalIncome - $totalExpense;
-        
-        // This month's totals
-        $thisMonthIncome = $user->incomes()
-            ->whereMonth('tanggal', Carbon::now()->month)
-            ->whereYear('tanggal', Carbon::now()->year)
-            ->sum('nominal');
-            
-        $thisMonthExpense = $user->expenses()
-            ->whereMonth('tanggal', Carbon::now()->month)
-            ->whereYear('tanggal', Carbon::now()->year)
-            ->sum('nominal');
-        
-        // Last 7 days transactions for chart
+        $now = Carbon::now();
+        $startOfMonth = $now->copy()->startOfMonth()->format('Y-m-d');
+        $endOfMonth = $now->copy()->endOfMonth()->format('Y-m-d');
+        $currentMonthKey = $now->format('Y-m');
+
+        // 1. Total Net Worth: Accounts Balance + Outstanding Receivables (Assets) - Outstanding Debts (Liabilities)
+        $accounts = Account::where('user_id', $user->id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+        $totalAccountBalance = (float) $accounts->sum('current_balance');
+
+        $totalReceivable = (float) (DebtReceivable::where('user_id', $user->id)
+            ->receivable()
+            ->whereIn('status', ['unpaid', 'partially_paid'])
+            ->selectRaw('SUM(amount - paid_amount) as total')
+            ->value('total') ?? 0);
+
+        $totalDebt = (float) (DebtReceivable::where('user_id', $user->id)
+            ->debt()
+            ->whereIn('status', ['unpaid', 'partially_paid'])
+            ->selectRaw('SUM(amount - paid_amount) as total')
+            ->value('total') ?? 0);
+
+        $totalNetWorth = $totalAccountBalance + $totalReceivable - $totalDebt;
+
+        // 2. This Month Financial Totals (Excluding Transfers)
+        $thisMonthIncome = (float) Transaction::where('user_id', $user->id)
+            ->where('type', 'income')
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
+            ->sum('amount');
+
+        $thisMonthExpense = (float) Transaction::where('user_id', $user->id)
+            ->where('type', 'expense')
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
+            ->sum('amount');
+
+        $netCashFlow = $thisMonthIncome - $thisMonthExpense;
+
+        // Compare with last month
+        $lastMonthStart = $now->copy()->subMonth()->startOfMonth()->format('Y-m-d');
+        $lastMonthEnd = $now->copy()->subMonth()->endOfMonth()->format('Y-m-d');
+        $lastMonthExpense = (float) Transaction::where('user_id', $user->id)
+            ->where('type', 'expense')
+            ->whereBetween('date', [$lastMonthStart, $lastMonthEnd])
+            ->sum('amount');
+        $expenseDiffPercent = $lastMonthExpense > 0 
+            ? round((($thisMonthExpense - $lastMonthExpense) / $lastMonthExpense) * 100, 1) 
+            : 0;
+
+        // 3. Last 7 Days chart data
+        $startDate = $now->copy()->subDays(6)->startOfDay();
+        $endDate = $now->copy()->endOfDay();
+
+        $incomesGrouped = Transaction::where('user_id', $user->id)
+            ->where('type', 'income')
+            ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->select(DB::raw('DATE(date) as date_val'), DB::raw('SUM(amount) as total'))
+            ->groupBy('date_val')
+            ->pluck('total', 'date_val');
+
+        $expensesGrouped = Transaction::where('user_id', $user->id)
+            ->where('type', 'expense')
+            ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->select(DB::raw('DATE(date) as date_val'), DB::raw('SUM(amount) as total'))
+            ->groupBy('date_val')
+            ->pluck('total', 'date_val');
+
         $last7Days = collect();
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
-            $dayIncome = (float) $user->incomes()
-                ->whereDate('tanggal', $date->format('Y-m-d'))
-                ->sum('nominal');
-            $dayExpense = (float) $user->expenses()
-                ->whereDate('tanggal', $date->format('Y-m-d'))
-                ->sum('nominal');
-            
+            $dateKey = $date->format('Y-m-d');
             $last7Days->push([
-                'date' => $date->format('Y-m-d'),
+                'date' => $dateKey,
                 'label' => $date->format('d M'),
-                'income' => (float) $dayIncome,
-                'expense' => (float) $dayExpense,
+                'income' => (float) ($incomesGrouped[$dateKey] ?? 0),
+                'expense' => (float) ($expensesGrouped[$dateKey] ?? 0),
             ]);
         }
-        
-        // Recent transactions (last 5)
-        $recentIncomes = $user->incomes()->latest('tanggal')->limit(3)->get();
-        $recentExpenses = $user->expenses()->latest('tanggal')->limit(3)->get();
-        $recent = $recentIncomes->concat($recentExpenses)
-            ->sortByDesc('tanggal')
-            ->take(5);
-        
-        // Category summaries
-        $incomeByCategory = $user->incomes()
-            ->select('kategori', DB::raw('sum(nominal) as total'))
-            ->groupBy('kategori')
+
+        // 4. Expenses by Category for Chart (This Month)
+        $expenseByCategory = Transaction::where('transactions.user_id', $user->id)
+            ->where('transactions.type', 'expense')
+            ->whereBetween('transactions.date', [$startOfMonth, $endOfMonth])
+            ->leftJoin('categories', 'transactions.category_id', '=', 'categories.id')
+            ->select(
+                DB::raw('COALESCE(categories.name, "Lainnya") as kategori'),
+                DB::raw('SUM(transactions.amount) as total'),
+                DB::raw('COALESCE(categories.color, "#FF6B6B") as color')
+            )
+            ->groupBy('categories.name', 'categories.color')
+            ->orderByDesc('total')
             ->get()
             ->map(function ($item) {
                 return [
-                    'kategori' => $item->kategori ?? 'Lainnya',
-                    'total' => (float) $item->total
+                    'kategori' => $item->kategori,
+                    'total' => (float) $item->total,
+                    'color' => $item->color,
                 ];
             });
-            
-        $expenseByCategory = $user->expenses()
-            ->select('kategori', DB::raw('sum(nominal) as total'))
-            ->groupBy('kategori')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'kategori' => $item->kategori ?? 'Lainnya',
-                    'total' => (float) $item->total
-                ];
-            });
-        
+
+        // 5. Recent Transactions (last 6 items with full relations)
+        $recent = Transaction::with(['account', 'destinationAccount', 'category'])
+            ->where('user_id', $user->id)
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->limit(6)
+            ->get();
+
+        // 6. Budget Highlights (This Month)
+        $budgetSummary = $this->budgetService->getMonthlyBudgets($user, $currentMonthKey);
+
+        // 7. Upcoming Recurring Bills / Incomes (due within 14 days)
+        $upcomingRecurring = $this->recurringService->getUpcoming($user, 14);
+
+        // 8. Pending Debts & Receivables
+        $pendingDebts = DebtReceivable::where('user_id', $user->id)
+            ->pending()
+            ->orderBy('due_date')
+            ->limit(4)
+            ->get();
+
+        // Categories & Accounts for quick modal
+        $allCategories = Category::forUser($user->id)->orderBy('name')->get();
+        $allAccounts = $accounts;
+
         return view('dashboard.index', compact(
-            'totalSaldo',
-            'totalIncome',
-            'totalExpense',
+            'totalNetWorth',
+            'totalAccountBalance',
+            'totalReceivable',
+            'totalDebt',
             'thisMonthIncome',
             'thisMonthExpense',
+            'netCashFlow',
+            'expenseDiffPercent',
+            'accounts',
             'last7Days',
+            'expenseByCategory',
             'recent',
-            'incomeByCategory',
-            'expenseByCategory'
+            'budgetSummary',
+            'upcomingRecurring',
+            'pendingDebts',
+            'allCategories',
+            'allAccounts'
         ));
     }
 }

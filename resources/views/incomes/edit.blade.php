@@ -6,181 +6,95 @@
                     <x-icon name="edit-leaf" class="w-8 h-8 text-sage-400" />
                     Edit Pemasukan
                 </h2>
-                <p class="mt-1 text-earth-600">Update your income seed</p>
+                <p class="mt-1 text-earth-600 text-sm">Perbarui catatan pemasukan Anda</p>
             </div>
-            <a href="{{ route('incomes.index') }}" class="btn-flora-secondary">
-                Kembali
+            <a href="{{ route('incomes.index') }}" class="btn-flora-secondary text-sm">
+                ← Kembali
             </a>
         </div>
     </x-slot>
 
-    <x-card class="max-w-3xl mx-auto">
+    @php
+        $amount = $income->amount ?? $income->nominal;
+        $desc = $income->description ?? $income->keterangan;
+        $catId = $income->category_id ?? null;
+        $catName = $income->category->name ?? $income->kategori;
+        $date = $income->date ? $income->date->format('Y-m-d') : ($income->tanggal ? $income->tanggal->format('Y-m-d') : '');
+        $accId = $income->account_id ?? null;
+        $proof = $income->attachment ?? $income->bukti_transfer;
+    @endphp
+
+    <x-card class="max-w-2xl mx-auto">
         <form action="{{ route('incomes.update', $income) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
             @csrf
             @method('PUT')
 
             <!-- Nominal -->
-            <div class="form-section">
-                <label class="form-section-title">
-                    <x-icon name="tree" class="w-5 h-5" />
-                    Nominal Pemasukan
-                </label>
-                <input type="number" name="nominal" id="nominal" 
-                       value="{{ old('nominal', $income->nominal) }}" 
-                       step="0.01" min="0"
-                       required
-                       class="flora-input @error('nominal') border-coral-400 @enderror"
-                       placeholder="Masukkan nominal">
-                @error('nominal')
-                    <p class="mt-1 text-sm text-coral-600">{{ $message }}</p>
-                @enderror
+            <div class="form-section pb-4">
+                <label class="form-section-title text-sm mb-2">Nominal Pemasukan (Rp)</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-sage-600">Rp</span>
+                    <input type="number" name="nominal" value="{{ old('nominal', $amount) }}" step="0.01" min="0.01" required class="flora-input pl-12 text-lg font-bold">
+                </div>
             </div>
 
             <!-- Kategori -->
-            <div class="form-section">
-                <label class="form-section-title">
-                    <x-icon name="bouquet" class="w-5 h-5" />
-                    Kategori
-                </label>
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    @php
-                        $categories = [
-                            'Gaji' => ['icon' => 'sunflower', 'color' => 'leaf'],
-                            'Bonus' => ['icon' => 'cherry-blossom', 'color' => 'coral'],
-                            'Investasi' => ['icon' => 'oak-tree', 'color' => 'sage'],
-                            'Freelance' => ['icon' => 'wildflower', 'color' => 'mint'],
-                            'Lainnya' => ['icon' => 'bouquet', 'color' => 'sky']
-                        ];
-                        $currentKategori = old('kategori', $income->kategori);
-                    @endphp
-                    @foreach($categories as $key => $cat)
-                        <label class="relative">
-                            <input type="radio" name="kategori" value="{{ $key }}" 
-                                   {{ $currentKategori == $key ? 'checked' : '' }}
-                                   class="peer sr-only">
-                            <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-sage-200 cursor-pointer transition-all peer-checked:border-{{ $cat['color'] }}-400 peer-checked:bg-{{ $cat['color'] }}-50 hover:border-{{ $cat['color'] }}-300">
-                                <x-icon :name="$cat['icon']" class="w-8 h-8 text-{{ $cat['color'] }}-600" />
-                                <span class="text-sm font-medium text-earth-700">{{ $key }}</span>
-                            </div>
-                        </label>
+            <div class="form-section pb-4">
+                <label class="form-section-title text-sm mb-2">Kategori</label>
+                <select name="category_id" class="flora-input">
+                    @foreach($categories as $cat)
+                        <option value="{{ $cat->id }}" {{ old('category_id', $catId) == $cat->id || old('kategori', $catName) == $cat->name ? 'selected' : '' }}>
+                            {{ $cat->name }}
+                        </option>
                     @endforeach
-                </div>
-                @error('kategori')
-                    <p class="mt-1 text-sm text-coral-600">{{ $message }}</p>
-                @enderror
+                </select>
             </div>
 
             <!-- Keterangan -->
-            <div class="form-section">
-                <label class="form-section-title">
-                    <x-icon name="flower" class="w-5 h-5" />
-                    Keterangan
-                </label>
-                <textarea name="keterangan" id="keterangan" rows="3"
-                          class="flora-input @error('keterangan') border-coral-400 @enderror"
-                          placeholder="Tambahkan keterangan (opsional)">{{ old('keterangan', $income->keterangan) }}</textarea>
-                @error('keterangan')
-                    <p class="mt-1 text-sm text-coral-600">{{ $message }}</p>
-                @enderror
+            <div class="form-section pb-4">
+                <label class="form-section-title text-sm mb-2">Keterangan</label>
+                <input type="text" name="keterangan" value="{{ old('keterangan', $desc) }}" class="flora-input">
             </div>
 
-            <!-- Tanggal -->
-            <div class="form-section">
-                <label class="form-section-title">
-                    <x-icon name="flower-bloom" class="w-5 h-5" />
-                    Tanggal
-                </label>
-                <input type="date" name="tanggal" id="tanggal" 
-                       value="{{ old('tanggal', $income->tanggal ? $income->tanggal->format('Y-m-d') : now()->format('Y-m-d')) }}"
-                       class="flora-input @error('tanggal') border-coral-400 @enderror">
-                @error('tanggal')
-                    <p class="mt-1 text-sm text-coral-600">{{ $message }}</p>
-                @enderror
-            </div>
+            <!-- Tanggal & Rekening -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 form-section pb-4">
+                <div>
+                    <label class="form-section-title text-sm mb-2">Tanggal</label>
+                    <input type="date" name="tanggal" value="{{ old('tanggal', $date) }}" required class="flora-input">
+                </div>
 
-            <!-- Nama Bank -->
-            <div class="form-section">
-                <label class="form-section-title">
-                    <x-icon name="cash-leaf" class="w-5 h-5" />
-                    Metode Pembayaran
-                </label>
-                <select name="nama_bank" id="nama_bank" 
-                        class="flora-input @error('nama_bank') border-coral-400 @enderror">
-                    <option value="">Pilih Metode</option>
-                    <option value="BCA" {{ old('nama_bank', $income->nama_bank) == 'BCA' ? 'selected' : '' }}>BCA</option>
-                    <option value="Mandiri" {{ old('nama_bank', $income->nama_bank) == 'Mandiri' ? 'selected' : '' }}>Mandiri</option>
-                    <option value="BRI" {{ old('nama_bank', $income->nama_bank) == 'BRI' ? 'selected' : '' }}>BRI</option>
-                    <option value="Cash" {{ old('nama_bank', $income->nama_bank) == 'Cash' ? 'selected' : '' }}>Cash</option>
-                    <option value="E-Wallet" {{ old('nama_bank', $income->nama_bank) == 'E-Wallet' ? 'selected' : '' }}>E-Wallet</option>
-                </select>
-                @error('nama_bank')
-                    <p class="mt-1 text-sm text-coral-600">{{ $message }}</p>
-                @enderror
+                <div>
+                    <label class="form-section-title text-sm mb-2">Rekening Penerima</label>
+                    <select name="account_id" class="flora-input">
+                        @foreach($accounts as $acc)
+                            <option value="{{ $acc->id }}" {{ old('account_id', $accId) == $acc->id ? 'selected' : '' }}>
+                                {{ $acc->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
 
             <!-- Bukti Transfer -->
-            <div class="form-section">
-                <label class="form-section-title">
-                    <x-icon name="flower" class="w-5 h-5" />
-                    Bukti Transfer
-                </label>
-                @if($income->bukti_transfer)
-                    <div class="mb-4">
-                        <p class="text-sm text-earth-600 mb-2">Bukti saat ini:</p>
-                        <img src="{{ asset('storage/' . $income->bukti_transfer) }}" alt="Current proof" class="max-w-xs rounded-lg shadow-md">
+            <div class="form-section pb-4">
+                <label class="form-section-title text-sm mb-2">Bukti Transfer (Opsional)</label>
+                @if($proof)
+                    <div class="mb-3 flex items-center gap-3 p-3 bg-sage-50 rounded-xl">
+                        <img src="{{ asset('storage/' . $proof) }}" alt="Bukti" class="w-16 h-16 object-cover rounded-lg border">
+                        <a href="{{ asset('storage/' . $proof) }}" target="_blank" class="text-xs text-sage-600 hover:underline">Lihat Gambar Bukti</a>
                     </div>
                 @endif
-                <div class="border-2 border-dashed border-sage-300 rounded-xl p-8 text-center hover:border-sage-400 transition-colors">
-                    <input type="file" name="bukti_transfer" id="bukti_transfer" 
-                           accept="image/*"
-                           class="hidden"
-                           onchange="previewImage(this)">
-                    <label for="bukti_transfer" class="cursor-pointer">
-                        <x-icon name="add-seed" class="w-12 h-12 text-sage-400 mx-auto mb-3" />
-                        <p class="text-earth-600 mb-2">Klik untuk upload atau drag & drop</p>
-                        <p class="text-sm text-earth-500">PNG, JPG maksimal 2MB</p>
-                    </label>
-                    <div id="imagePreview" class="mt-4 hidden">
-                        <img id="previewImg" src="" alt="Preview" class="max-w-xs mx-auto rounded-lg shadow-md">
-                    </div>
-                </div>
-                @error('bukti_transfer')
-                    <p class="mt-1 text-sm text-coral-600">{{ $message }}</p>
-                @enderror
+                <input type="file" name="bukti_transfer" accept="image/*" class="flora-input text-xs">
             </div>
 
-            <!-- Submit Button -->
-            <div class="flex gap-4 justify-end pt-6 border-t border-sage-200">
-                <a href="{{ route('incomes.index') }}" class="btn-flora-secondary">
-                    Batal
-                </a>
-                <button type="submit" class="btn-flora-primary">
-                    <x-icon name="edit-leaf" class="w-5 h-5" />
-                    Update Income
+            <!-- Actions -->
+            <div class="flex gap-3 justify-end pt-4 border-t border-sage-200">
+                <a href="{{ route('incomes.index') }}" class="btn-flora-secondary">Batal</a>
+                <button type="submit" class="btn-flora-primary flex items-center gap-2">
+                    <x-icon name="sprout" class="w-4 h-4 text-white" />
+                    <span>Perbarui Pemasukan</span>
                 </button>
             </div>
         </form>
     </x-card>
-
-    @push('scripts')
-    <script>
-        function previewImage(input) {
-            const preview = document.getElementById('imagePreview');
-            const previewImg = document.getElementById('previewImg');
-            
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    previewImg.src = e.target.result;
-                    preview.classList.remove('hidden');
-                }
-                reader.readAsDataURL(input.files[0]);
-            } else {
-                preview.classList.add('hidden');
-            }
-        }
-    </script>
-    @endpush
 </x-app-layout>
-
-
