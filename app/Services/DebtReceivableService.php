@@ -23,6 +23,7 @@ class DebtReceivableService
             $data['user_id'] = $user->id;
             $data['paid_amount'] = 0;
             $data['status'] = 'unpaid';
+            $data['date'] = $data['date'] ?? now()->format('Y-m-d');
 
             $debtReceivable = DebtReceivable::create($data);
 
