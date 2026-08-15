@@ -13,6 +13,17 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
 
+// Global Route Parameter Constraints (Prevents PostgreSQL 22P02 invalid integer syntax)
+Route::pattern('account', '[0-9]+');
+Route::pattern('transaction', '[0-9]+');
+Route::pattern('debt', '[0-9]+');
+Route::pattern('payment', '[0-9]+');
+Route::pattern('budget', '[0-9]+');
+Route::pattern('recurring', '[0-9]+');
+Route::pattern('category', '[0-9]+');
+Route::pattern('income', '[0-9]+');
+Route::pattern('expense', '[0-9]+');
+
 Route::get('/', function () {
     if (auth()->check()) {
         return redirect()->route('dashboard');

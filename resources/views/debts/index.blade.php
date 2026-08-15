@@ -59,7 +59,10 @@
             clearTimeout(this.pressTimer);
         },
 
-        handleCardClick(el) {
+        handleCardClick(el, e) {
+            if (e && e.target && e.target.closest('a, button')) {
+                return;
+            }
             const debt = this.getDebtFromEl(el);
             if (!debt) return;
             if (!this.isLongPress) {
@@ -166,7 +169,7 @@
                          @mouseup="cancelPress()"
                          @mouseleave="cancelPress()"
                          @contextmenu.prevent
-                         @click="handleCardClick($el)">
+                         @click="handleCardClick($el, $event)">
                         
                         <div>
                             <div class="flex items-start justify-between mb-3">
@@ -178,16 +181,6 @@
                                     <div class="text-xs text-earth-500 font-medium">
                                         {{ $debt->type === 'debt' ? 'Hutang kepada' : 'Dipinjam oleh' }} {{ $debt->person_name }}
                                     </div>
-                                </div>
-
-                                <!-- Prominent Edit Action Button -->
-                                <div class="flex items-center gap-1 shrink-0 ml-2" @click.stop>
-                                    <a href="{{ route('debts.edit', $debt) }}" 
-                                       class="px-2.5 py-1.5 rounded-xl bg-sage-100/80 hover:bg-sage-200 text-sage-800 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs" 
-                                       title="Edit Catatan">
-                                        <x-icon name="edit-leaf" class="w-3.5 h-3.5 text-sage-700" />
-                                        <span>Edit</span>
-                                    </a>
                                 </div>
                             </div>
 

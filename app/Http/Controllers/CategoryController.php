@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CategoryController extends Controller
 {
@@ -15,34 +16,34 @@ class CategoryController extends Controller
         $incomeCategories = Category::forUser($user->id)
             ->income()
             ->parentsOnly()
-            ->with(['children' => function ($q) use ($user) {
-                $q->forUser($user->id);
+            ->withCount(['transactions' => function ($q) use ($user) {
+                $q->where('user_id', $user->id);
             }])
+            ->with(['children' => function ($q) use ($user) {
+                $q->forUser($user->id)->withCount(['transactions' => function ($tq) use ($user) {
+                    $tq->where('user_id', $user->id);
+                }]);
+            }])
+            ->orderBy('name')
             ->get();
 
         $expenseCategories = Category::forUser($user->id)
             ->expense()
             ->parentsOnly()
-            ->with(['children' => function ($q) use ($user) {
-                $q->forUser($user->id);
+            ->withCount(['transactions' => function ($q) use ($user) {
+                $q->where('user_id', $user->id);
             }])
+            ->with(['children' => function ($q) use ($user) {
+                $q->forUser($user->id)->withCount(['transactions' => function ($tq) use ($user) {
+                    $tq->where('user_id', $user->id);
+                }]);
+            }])
+            ->orderBy('name')
             ->get();
 
-        return view('categories.index', compact('incomeCategories', 'expenseCategories'));
-    }
+        $allCategories = Category::forUser($user->id)->orderBy('name')->get();
 
-    public function create(Request $request)
-    {
-        $user = auth()->user();
-        $type = $request->query('type', 'expense');
-        $parentId = $request->query('parent_id');
-
-        $parentCategories = Category::forUser($user->id)
-            ->where('type', $type)
-            ->parentsOnly()
-            ->get();
-
-        return view('categories.create', compact('type', 'parentId', 'parentCategories'));
+        return view('categories.index', compact('incomeCategories', 'expenseCategories', 'allCategories'));
     }
 
     public function store(Request $request)
@@ -60,23 +61,9 @@ class CategoryController extends Controller
         $validated['user_id'] = $user->id;
         $validated['is_default'] = false;
 
-        Category::create($validated);
+        $category = Category::create($validated);
 
-        return redirect()->route('categories.index')->with('success', 'Kategori baru berhasil ditambahkan!');
-    }
-
-    public function edit(Category $category)
-    {
-        $this->authorizeCategory($category);
-        $user = auth()->user();
-
-        $parentCategories = Category::forUser($user->id)
-            ->where('type', $category->type)
-            ->where('id', '!=', $category->id)
-            ->parentsOnly()
-            ->get();
-
-        return view('categories.edit', compact('category', 'parentCategories'));
+        return redirect()->route('categories.index')->with('success', 'Kategori "' . $category->name . '" berhasil ditambahkan!');
     }
 
     public function update(Request $request, Category $category)
@@ -85,6 +72,7 @@ class CategoryController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:100',
+            'type' => 'required|in:income,expense',
             'parent_id' => 'nullable|exists:categories,id|different:id',
             'icon' => 'required|string|max:50',
             'color' => 'required|string|max:20',
@@ -92,22 +80,59 @@ class CategoryController extends Controller
 
         $category->update($validated);
 
-        return redirect()->route('categories.index')->with('success', 'Kategori berhasil diperbarui!');
+        return redirect()->route('categories.index')->with('success', 'Kategori "' . $category->name . '" berhasil diperbarui!');
     }
 
-    public function destroy(Category $category)
+    public function destroy(Request $request, Category $category)
     {
         $this->authorizeCategory($category);
 
-        $hasTransactions = Transaction::where('category_id', $category->id)->exists();
+        $user = auth()->user();
+        $transactionCount = Transaction::where('category_id', $category->id)->where('user_id', $user->id)->count();
 
-        if ($hasTransactions) {
-            return back()->with('error', 'Kategori ini tidak dapat dihapus karena sudah memiliki catatan transaksi terkait.');
+        $action = $request->input('action', 'cascade');
+
+        if ($transactionCount > 0 && $action === 'reassign') {
+            $request->validate([
+                'target_category_id' => 'required|exists:categories,id',
+            ]);
+
+            $targetCategoryId = $request->input('target_category_id');
+            if ($targetCategoryId == $category->id) {
+                return back()->with('error', 'Kategori tujuan pemindahan tidak boleh sama dengan kategori yang dihapus.');
+            }
+
+            DB::transaction(function () use ($category, $targetCategoryId, $user) {
+                // Reassign transactions
+                Transaction::where('category_id', $category->id)
+                    ->where('user_id', $user->id)
+                    ->update(['category_id' => $targetCategoryId]);
+
+                // Reassign child categories
+                Category::where('parent_id', $category->id)
+                    ->update(['parent_id' => $targetCategoryId]);
+
+                $category->delete();
+            });
+
+            return redirect()->route('categories.index')->with('success', 'Seluruh transaksi berhasil dipindahkan dan kategori telah dihapus.');
         }
 
-        $category->delete();
+        // Cascade delete / unassign
+        DB::transaction(function () use ($category, $user) {
+            // Unassign transactions
+            Transaction::where('category_id', $category->id)
+                ->where('user_id', $user->id)
+                ->update(['category_id' => null]);
 
-        return redirect()->route('categories.index')->with('success', 'Kategori berhasil dihapus.');
+            // Unassign child categories
+            Category::where('parent_id', $category->id)
+                ->update(['parent_id' => null]);
+
+            $category->delete();
+        });
+
+        return redirect()->route('categories.index')->with('success', 'Kategori "' . $category->name . '" berhasil dihapus.');
     }
 
     protected function authorizeCategory(Category $category): void

@@ -21,9 +21,10 @@
         </div>
     </x-slot>
 
-    <!-- Outer Alpine Container for Long-Press & Action Sheet -->
+    <!-- Outer Alpine Container for Long-Press, Action Sheet & Delete Modal -->
     <div x-data="{
         actionSheetOpen: false,
+        deleteModalOpen: false,
         activeAcc: null,
 
         pressTimer: null,
@@ -60,7 +61,10 @@
             clearTimeout(this.pressTimer);
         },
 
-        handleCardClick(el) {
+        handleCardClick(el, e) {
+            if (e && e.target && e.target.closest('a, button')) {
+                return;
+            }
             const acc = this.getAccFromEl(el);
             if (!acc) return;
             if (!this.isLongPress) {
@@ -73,6 +77,13 @@
             if (!acc) return;
             this.activeAcc = acc;
             this.actionSheetOpen = true;
+        },
+
+        confirmDelete(acc) {
+            if (!acc) return;
+            this.activeAcc = acc;
+            this.actionSheetOpen = false;
+            this.deleteModalOpen = true;
         }
     }">
 
@@ -104,6 +115,7 @@
                         'account_number' => $acc->account_number,
                         'show_url' => route('accounts.show', $acc),
                         'edit_url' => route('accounts.edit', $acc),
+                        'delete_url' => route('accounts.destroy', $acc),
                         'recalculate_url' => route('accounts.recalculate', $acc),
                     ];
                     $accB64 = base64_encode(json_encode($accDataData));
@@ -119,7 +131,7 @@
                      @mouseup="cancelPress()"
                      @mouseleave="cancelPress()"
                      @contextmenu.prevent
-                     @click="handleCardClick($el)">
+                     @click="handleCardClick($el, $event)">
                     
                     <div class="flex items-start justify-between mb-4">
                         <div class="flex items-center gap-3 min-w-0">
@@ -132,16 +144,6 @@
                                     {{ $acc->type_name }}
                                 </span>
                             </div>
-                        </div>
-
-                        <!-- Prominent Edit Action Button -->
-                        <div class="flex items-center gap-1 shrink-0 ml-2" @click.stop>
-                            <a href="{{ route('accounts.edit', $acc) }}" 
-                               class="px-2.5 py-1.5 rounded-xl bg-sage-100/80 hover:bg-sage-200 text-sage-800 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs" 
-                               title="Edit Rekening">
-                                <x-icon name="edit-leaf" class="w-3.5 h-3.5 text-sage-700" />
-                                <span>Edit</span>
-                            </a>
                         </div>
                     </div>
 
@@ -178,7 +180,7 @@
             </a>
         </div>
 
-        <!-- ================= MOBILE CONTEXT ACTION SHEET (Popup Tekan Lama) ================= -->
+        <!-- ================= 1. MOBILE CONTEXT ACTION SHEET (Popup Tekan Lama) ================= -->
         <div x-show="actionSheetOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
             <div x-show="actionSheetOpen" 
                  x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
@@ -235,21 +237,93 @@
                                 </button>
                             </form>
 
-                            <!-- Option 4: Delete Account -->
-                            <a :href="activeAcc ? activeAcc.edit_url : '#'" 
-                               class="w-full p-3.5 rounded-2xl bg-coral-50 hover:bg-coral-100 text-coral-700 text-xs font-bold flex items-center justify-between transition-colors">
+                            <!-- Option 4: Delete Account Confirmation Modal -->
+                            <button type="button" 
+                                    @click="confirmDelete(activeAcc)"
+                                    class="w-full p-3.5 rounded-2xl bg-coral-50 hover:bg-coral-100 text-coral-700 text-xs font-bold flex items-center justify-between transition-colors">
                                 <span class="flex items-center gap-2.5">
                                     <x-icon name="delete-wilt" class="w-4 h-4 text-coral-600" />
                                     <span>Hapus / Nonaktifkan Rekening</span>
                                 </span>
                                 <span class="text-coral-400">→</span>
-                            </a>
+                            </button>
                         </div>
 
                         <button type="button" @click="actionSheetOpen = false" class="w-full text-center text-xs font-semibold text-earth-500 hover:text-earth-700 mt-4 py-2">
                             Batal
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 2. DELETE ACCOUNT CONFIRMATION MODAL ================= -->
+        <div x-show="deleteModalOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+            <div x-show="deleteModalOpen" 
+                 x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                 x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+                 class="fixed inset-0 bg-earth-900/60 backdrop-blur-sm transition-opacity" @click="deleteModalOpen = false"></div>
+
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div x-show="deleteModalOpen"
+                     x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                     x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                     class="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg p-6 border border-sage-100">
+
+                    <form :action="activeAcc ? activeAcc.delete_url : '#'" method="POST">
+                        @csrf
+                        @method('DELETE')
+
+                        <div class="flex items-start gap-4 mb-4">
+                            <div class="w-12 h-12 rounded-2xl bg-coral-100 text-coral-600 flex items-center justify-center shrink-0">
+                                <x-icon name="delete-wilt" class="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold font-heading text-earth-900">
+                                    Hapus Rekening "<span x-text="activeAcc ? activeAcc.name : ''"></span>"
+                                </h3>
+                                <p class="text-xs text-earth-600 mt-1">
+                                    Saldo saat ini: <span class="font-bold text-coral-600" x-text="activeAcc ? activeAcc.balance_formatted : ''"></span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 mb-6">
+                            <label class="text-xs font-semibold text-earth-800 block">Pilih Tindakan Penghapusan:</label>
+
+                            <!-- Option 1: Cascade Delete -->
+                            <div class="p-3.5 rounded-2xl border transition-all cursor-pointer border-coral-500 bg-coral-50/50 ring-2 ring-coral-200">
+                                <div class="flex items-start gap-3">
+                                    <input type="radio" name="action" value="cascade" checked class="mt-0.5 text-coral-600 focus:ring-coral-500">
+                                    <div class="text-xs">
+                                        <div class="font-bold text-coral-700">Hapus Rekening & Seluruh Transaksi / Catatan Terkait</div>
+                                        <div class="text-earth-600 text-[11px] mt-0.5">PERINGATAN: Rekening, seluruh riwayat transaksi, serta catatan hutang & piutang terkait akan dihapus permanen dari sistem.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Option 2: Deactivate / Archive -->
+                            <div class="p-3.5 rounded-2xl border transition-all cursor-pointer border-sage-200 bg-white hover:bg-earth-50/30">
+                                <div class="flex items-start gap-3">
+                                    <input type="radio" name="action" value="deactivate" class="mt-0.5 text-earth-600 focus:ring-earth-500">
+                                    <div class="text-xs">
+                                        <div class="font-bold text-earth-800">Nonaktifkan Rekening (Arsip)</div>
+                                        <div class="text-earth-600 text-[11px] mt-0.5">Rekening akan disembunyikan tanpa menghapus riwayat transaksi keuangan Anda.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-3 border-t border-sage-100">
+                            <button type="button" @click="deleteModalOpen = false" class="btn-flora-secondary text-xs">
+                                Batal
+                            </button>
+                            <button type="submit" class="btn-flora-primary text-xs !bg-coral-600 hover:!bg-coral-700 !border-coral-600 shadow-sm flex items-center gap-1 cursor-pointer">
+                                <x-icon name="delete-wilt" class="w-3.5 h-3.5 text-white" />
+                                <span>Ya, Proses Hapus</span>
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

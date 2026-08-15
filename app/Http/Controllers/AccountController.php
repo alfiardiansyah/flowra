@@ -70,7 +70,30 @@ class AccountController extends Controller
         ->orderBy('id', 'desc')
         ->paginate(20);
 
-        return view('accounts.show', compact('account', 'transactions'));
+        $totalIn = (float) Transaction::where('account_id', $account->id)
+            ->where('type', 'income')
+            ->sum('amount');
+
+        $totalOut = (float) Transaction::where('account_id', $account->id)
+            ->where('type', 'expense')
+            ->sum('amount');
+
+        $transfersIn = (float) Transaction::where('destination_account_id', $account->id)
+            ->where('type', 'transfer')
+            ->sum('amount');
+
+        $transfersOut = (float) Transaction::where('account_id', $account->id)
+            ->where('type', 'transfer')
+            ->sum('amount');
+
+        return view('accounts.show', compact(
+            'account',
+            'transactions',
+            'totalIn',
+            'totalOut',
+            'transfersIn',
+            'transfersOut'
+        ));
     }
 
     public function edit(Account $account)

@@ -45,7 +45,7 @@
         <x-card class="p-5 border-l-4 border-l-leaf-400">
             <div class="text-xs text-earth-500 font-medium">Total Pemasukan</div>
             <div class="text-2xl font-bold text-leaf-600 mt-1">
-                Rp {{ number_format($totalIn, 0, ',', '.') }}
+                Rp {{ number_format($totalIn ?? 0, 0, ',', '.') }}
             </div>
             <div class="text-[11px] text-earth-400 mt-1">Akumulasi uang masuk</div>
         </x-card>
@@ -53,7 +53,7 @@
         <x-card class="p-5 border-l-4 border-l-coral-400">
             <div class="text-xs text-earth-500 font-medium">Total Pengeluaran</div>
             <div class="text-2xl font-bold text-coral-600 mt-1">
-                Rp {{ number_format($totalOut, 0, ',', '.') }}
+                Rp {{ number_format($totalOut ?? 0, 0, ',', '.') }}
             </div>
             <div class="text-[11px] text-earth-400 mt-1">Akumulasi uang keluar</div>
         </x-card>
@@ -61,10 +61,10 @@
         <x-card class="p-5 border-l-4 border-l-sky-400">
             <div class="text-xs text-earth-500 font-medium">Mutasi Transfer</div>
             <div class="text-sm font-bold text-sky-600 mt-1">
-                Masuk: +Rp {{ number_format($transfersIn, 0, ',', '.') }}
+                Masuk: +Rp {{ number_format($transfersIn ?? 0, 0, ',', '.') }}
             </div>
             <div class="text-xs font-bold text-coral-500 mt-0.5">
-                Keluar: -Rp {{ number_format($transfersOut, 0, ',', '.') }}
+                Keluar: -Rp {{ number_format($transfersOut ?? 0, 0, ',', '.') }}
             </div>
         </x-card>
     </div>
