@@ -55,7 +55,8 @@
                 <input id="remember_me" 
                        type="checkbox" 
                        class="rounded border-sage-300 text-sage-600 shadow-sm focus:ring-sage-500 focus:ring-2 transition-colors cursor-pointer w-4 h-4" 
-                       name="remember">
+                       name="remember"
+                       checked>
                 <span class="ms-2 text-xs text-earth-600 group-hover:text-sage-700 transition-colors">
                     Remember me
                 </span>

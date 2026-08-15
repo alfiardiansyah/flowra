@@ -14,7 +14,8 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Satisfy&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-        <!-- Scripts -->
+        <!-- Scripts & Styles -->
+        <style>[x-cloak] { display: none !important; }</style>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased botanical-bg text-earth-800" x-data="{ mobileMenuOpen: false }">
@@ -345,6 +346,110 @@
 
         <!-- Global Quick Transaction Modal Component -->
         <x-quick-transaction-modal :accounts="$globalAccounts ?? collect()" :categories="$globalCategories ?? collect()" />
+
+        <!-- Botanical Page Transition Loading Screen -->
+        <div id="flora-global-loader" class="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-cream-50/90 backdrop-blur-md transition-opacity duration-300 opacity-0 pointer-events-none select-none">
+            <div class="relative flex items-center justify-center w-28 h-28">
+                <!-- Glowing Soft Pulsing Background Aura -->
+                <div class="absolute w-20 h-20 rounded-full bg-mint-200/40 animate-pulse"></div>
+
+                <!-- Outer Clockwise Gentle Gradient Spinner Ring (Slow 3.8s) -->
+                <div class="absolute w-24 h-24 rounded-full border-4 border-transparent border-t-sage-600 border-r-leaf-500 border-b-mint-400 animate-spin-slow"></div>
+
+                <!-- Inner Counter-Clockwise Dotted Botanical Halo Ring (Slow 5.5s) -->
+                <div class="absolute w-16 h-16 rounded-full border-2 border-dashed border-sage-400/70 animate-spin-reverse-slow"></div>
+
+                <!-- Center Sprout Logo Icon -->
+                <div class="relative z-10 w-10 h-10 rounded-2xl bg-white/80 backdrop-blur-sm p-1.5 shadow-sm border border-sage-200/70 flex items-center justify-center">
+                    <img src="{{ asset('images/icons/sprout.png') }}" alt="Flowra Sprout" class="w-full h-full object-contain animate-bounce">
+                </div>
+            </div>
+
+            <!-- Flowra Brand Text & Status Message -->
+            <div class="text-center mt-5">
+                <div class="font-heading text-lg font-bold text-sage-800 tracking-wide flex items-center justify-center gap-1.5 leading-tight">
+                    <span>Flowra</span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-leaf-500 animate-pulse"></span>
+                </div>
+                <p class="text-xs text-earth-600 font-medium tracking-wide mt-1.5 animate-pulse">Menyiapkan kebun keuangan Anda...</p>
+            </div>
+        </div>
+
+        <style>
+            @keyframes spin-slow {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            @keyframes spin-reverse-slow {
+                from { transform: rotate(360deg); }
+                to { transform: rotate(0deg); }
+            }
+            .animate-spin-slow {
+                animation: spin-slow 3.8s linear infinite;
+            }
+            .animate-spin-reverse-slow {
+                animation: spin-reverse-slow 5.5s linear infinite;
+            }
+        </style>
+
+        <script>
+            (function() {
+                const loader = document.getElementById('flora-global-loader');
+                let hideTimeout = null;
+
+                function showLoader() {
+                    if (!loader) return;
+                    loader.classList.remove('opacity-0', 'pointer-events-none');
+                    loader.classList.add('opacity-100', 'pointer-events-auto');
+
+                    // Safety fallback: auto-hide after 6 seconds in case navigation is interrupted
+                    clearTimeout(hideTimeout);
+                    hideTimeout = setTimeout(hideLoader, 6000);
+                }
+
+                function hideLoader() {
+                    if (!loader) return;
+                    loader.classList.remove('opacity-100', 'pointer-events-auto');
+                    loader.classList.add('opacity-0', 'pointer-events-none');
+                }
+
+                // Hide loader when page is loaded or restored from browser BFCache
+                window.addEventListener('pageshow', hideLoader);
+                window.addEventListener('DOMContentLoaded', hideLoader);
+
+                // Attach navigation listener to all internal links
+                document.addEventListener('click', function(e) {
+                    const link = e.target.closest('a');
+                    if (!link) return;
+
+                    const href = link.getAttribute('href');
+                    const target = link.getAttribute('target');
+
+                    // Ignore hash links, javascript: void, external links, downloads, or target="_blank"
+                    if (!href || 
+                        href.startsWith('#') || 
+                        href.startsWith('javascript:') || 
+                        target === '_blank' || 
+                        link.hasAttribute('download') ||
+                        link.hasAttribute('data-no-loader')) {
+                        return;
+                    }
+
+                    // Only trigger for same-origin links
+                    if (link.hostname === window.location.hostname) {
+                        showLoader();
+                    }
+                });
+
+                // Attach to form submissions
+                document.addEventListener('submit', function(e) {
+                    const form = e.target;
+                    if (form && !form.hasAttribute('data-no-loader')) {
+                        showLoader();
+                    }
+                });
+            })();
+        </script>
 
         <!-- Chart.js Library -->
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>

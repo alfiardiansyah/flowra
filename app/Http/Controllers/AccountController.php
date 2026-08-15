@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Transaction;
 use App\Services\TransactionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AccountController extends Controller
 {
@@ -96,7 +97,18 @@ class AccountController extends Controller
     public function edit(Account $account)
     {
         $this->authorizeAccount($account);
-        return view('accounts.edit', compact('account'));
+        $user = auth()->user();
+
+        $transactionCount = Transaction::where('account_id', $account->id)
+            ->orWhere('destination_account_id', $account->id)
+            ->count();
+
+        $otherAccounts = Account::where('user_id', $user->id)
+            ->where('id', '!=', $account->id)
+            ->where('is_active', true)
+            ->get();
+
+        return view('accounts.edit', compact('account', 'transactionCount', 'otherAccounts'));
     }
 
     public function update(Request $request, Account $account)
@@ -124,7 +136,7 @@ class AccountController extends Controller
         return redirect()->route('accounts.index')->with('success', 'Rekening berhasil diperbarui!');
     }
 
-    public function destroy(Account $account)
+    public function destroy(Request $request, Account $account)
     {
         $this->authorizeAccount($account);
 
@@ -132,14 +144,89 @@ class AccountController extends Controller
             ->orWhere('destination_account_id', $account->id)
             ->exists();
 
-        if ($hasTransactions) {
-            // Soft deactivate instead of destructive delete
-            $account->update(['is_active' => false]);
-            return back()->with('success', 'Rekening dinonaktifkan karena memiliki riwayat transaksi.');
+        if (!$hasTransactions) {
+            $account->delete();
+            return redirect()->route('accounts.index')->with('success', 'Rekening berhasil dihapus secara permanen.');
         }
 
-        $account->delete();
-        return redirect()->route('accounts.index')->with('success', 'Rekening berhasil dihapus.');
+        $action = $request->input('action', 'deactivate');
+
+        if ($action === 'reassign') {
+            $request->validate([
+                'target_account_id' => 'required|exists:accounts,id',
+            ]);
+
+            $targetAccountId = $request->input('target_account_id');
+            if ($targetAccountId == $account->id) {
+                return back()->with('error', 'Akun pemindahan tidak boleh sama dengan akun yang dihapus.');
+            }
+
+            $targetAccount = Account::where('user_id', auth()->id())->where('id', $targetAccountId)->firstOrFail();
+
+            DB::transaction(function () use ($account, $targetAccount) {
+                // Reassign main transactions
+                Transaction::where('account_id', $account->id)->update(['account_id' => $targetAccount->id]);
+                Transaction::where('destination_account_id', $account->id)->update(['destination_account_id' => $targetAccount->id]);
+
+                // Reassign recurring transactions & debts
+                \App\Models\RecurringTransaction::where('account_id', $account->id)->update(['account_id' => $targetAccount->id]);
+                \App\Models\RecurringTransaction::where('destination_account_id', $account->id)->update(['destination_account_id' => $targetAccount->id]);
+                \App\Models\DebtReceivable::where('account_id', $account->id)->update(['account_id' => $targetAccount->id]);
+                \App\Models\DebtReceivablePayment::where('account_id', $account->id)->update(['account_id' => $targetAccount->id]);
+
+                $account->delete();
+
+                // Recalculate balance for target account
+                $this->transactionService->recalculateAccountBalance($targetAccount);
+            });
+
+            return redirect()->route('accounts.index')->with('success', 'Seluruh transaksi berhasil dipindahkan ke ' . $targetAccount->name . ' dan rekening lama telah dihapus.');
+        }
+
+        if ($action === 'cascade') {
+            DB::transaction(function () use ($account) {
+                // Collect affected transfer partner accounts
+                $sourcePartnerIds = Transaction::where('type', 'transfer')
+                    ->where('destination_account_id', $account->id)
+                    ->pluck('account_id');
+
+                $destPartnerIds = Transaction::where('type', 'transfer')
+                    ->where('account_id', $account->id)
+                    ->whereNotNull('destination_account_id')
+                    ->pluck('destination_account_id');
+
+                $affectedAccountIds = $sourcePartnerIds->merge($destPartnerIds)
+                    ->filter(fn($id) => $id != $account->id)
+                    ->unique();
+
+                // Delete transactions
+                Transaction::where('account_id', $account->id)
+                    ->orWhere('destination_account_id', $account->id)
+                    ->delete();
+
+                // Delete recurring & debt records linked to this account
+                \App\Models\RecurringTransaction::where('account_id', $account->id)
+                    ->orWhere('destination_account_id', $account->id)
+                    ->delete();
+                \App\Models\DebtReceivablePayment::where('account_id', $account->id)->delete();
+
+                $account->delete();
+
+                // Recalculate affected partner accounts
+                foreach ($affectedAccountIds as $accId) {
+                    $partnerAcc = Account::find($accId);
+                    if ($partnerAcc) {
+                        $this->transactionService->recalculateAccountBalance($partnerAcc);
+                    }
+                }
+            });
+
+            return redirect()->route('accounts.index')->with('success', 'Rekening dan seluruh riwayat transaksinya berhasil dihapus.');
+        }
+
+        // Default action: deactivate (soft delete / archive)
+        $account->update(['is_active' => false]);
+        return redirect()->route('accounts.index')->with('success', 'Rekening berhasil dinonaktifkan.');
     }
 
     public function recalculate(Account $account)
