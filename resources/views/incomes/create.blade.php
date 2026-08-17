@@ -15,7 +15,7 @@
     </x-slot>
 
     <x-card class="max-w-3xl mx-auto">
-        <form action="{{ route('incomes.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+        <form action="{{ route('incomes.store') }}" method="POST" class="space-y-6">
             @csrf
 
             <!-- Nominal -->
@@ -122,31 +122,6 @@
                 @enderror
             </div>
 
-            <!-- Bukti Transfer -->
-            <div class="form-section">
-                <label class="form-section-title">
-                    <x-icon name="flower" class="w-5 h-5" />
-                    Bukti Pemasukan / Nota (Opsional)
-                </label>
-                <div class="border-2 border-dashed border-sage-300 rounded-xl p-6 text-center hover:border-sage-400 transition-colors">
-                    <input type="file" name="bukti_transfer" id="bukti_transfer" 
-                           accept="image/*"
-                           class="hidden"
-                           onchange="previewImage(this)">
-                    <label for="bukti_transfer" class="cursor-pointer">
-                        <x-icon name="add-seed" class="w-10 h-10 text-sage-400 mx-auto mb-2" />
-                        <p class="text-xs text-earth-600 mb-1">Klik untuk upload foto nota atau struk</p>
-                        <p class="text-[11px] text-earth-500">PNG, JPG maksimal 3MB</p>
-                    </label>
-                    <div id="imagePreview" class="mt-4 hidden">
-                        <img id="previewImg" src="" alt="Preview" class="max-w-xs mx-auto rounded-lg shadow-md">
-                    </div>
-                </div>
-                @error('bukti_transfer')
-                    <p class="mt-1 text-sm text-coral-600">{{ $message }}</p>
-                @enderror
-            </div>
-
             <!-- Submit Button -->
             <div class="flex gap-4 justify-end pt-6 border-t border-sage-200">
                 <a href="{{ route('incomes.index') }}" class="btn-flora-secondary">
@@ -166,22 +141,6 @@
             const hiddenKategori = document.getElementById('hidden_kategori');
             if (hiddenKategori && input.dataset.catname) {
                 hiddenKategori.value = input.dataset.catname;
-            }
-        }
-
-        function previewImage(input) {
-            const preview = document.getElementById('imagePreview');
-            const previewImg = document.getElementById('previewImg');
-            
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    previewImg.src = e.target.result;
-                    preview.classList.remove('hidden');
-                }
-                reader.readAsDataURL(input.files[0]);
-            } else {
-                preview.classList.add('hidden');
             }
         }
     </script>

@@ -58,7 +58,7 @@ class="relative z-50">
                 </button>
             </div>
 
-            <form action="{{ route('transactions.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+            <form action="{{ route('transactions.store') }}" method="POST" class="space-y-4">
                 @csrf
 
                 <!-- Transaction Type Toggle -->
@@ -155,17 +155,13 @@ class="relative z-50">
                     <button type="button" 
                             @click="showAdvanced = !showAdvanced" 
                             class="text-xs font-medium text-sage-600 hover:text-sage-700 flex items-center gap-1">
-                        <span x-text="showAdvanced ? '− Sembunyikan Opsi Lanjutan' : '+ Opsi Lanjutan (Catatan & Bukti)'"></span>
+                        <span x-text="showAdvanced ? '− Sembunyikan Opsi Lanjutan' : '+ Opsi Lanjutan (Catatan)'"></span>
                     </button>
 
                     <div x-show="showAdvanced" class="mt-3 space-y-3 pt-2 border-t border-sage-100" style="display: none;">
                         <div>
                             <label class="block text-xs font-semibold text-earth-700 mb-1">Catatan Tambahan</label>
                             <textarea name="notes" x-model="notes" rows="2" placeholder="Catatan detail..." class="flora-input text-sm"></textarea>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-earth-700 mb-1">Upload Bukti Transaksi (Opsional)</label>
-                            <input type="file" name="attachment" accept="image/*" class="text-xs text-earth-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-700 hover:file:bg-sage-200">
                         </div>
                     </div>
                 </div>

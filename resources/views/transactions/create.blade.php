@@ -18,7 +18,7 @@
         type: '{{ old('type', $defaultType ?? 'expense') }}',
         showAdvanced: false 
     }">
-        <form action="{{ route('transactions.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+        <form action="{{ route('transactions.store') }}" method="POST" class="space-y-6">
             @csrf
 
             <!-- 1. Transaction Type Toggle -->
@@ -164,27 +164,13 @@
                 <button type="button" 
                         @click="showAdvanced = !showAdvanced" 
                         class="text-sm font-semibold text-sage-600 hover:text-sage-700 flex items-center gap-1.5">
-                    <span x-text="showAdvanced ? '− Sembunyikan Opsi Lanjutan' : '+ Opsi Lanjutan (Catatan Tambahan & Upload Bukti)'"></span>
+                    <span x-text="showAdvanced ? '− Sembunyikan Opsi Lanjutan' : '+ Opsi Lanjutan (Catatan Tambahan)'"></span>
                 </button>
 
                 <div x-show="showAdvanced" class="mt-4 space-y-4 pt-4 border-t border-sage-200" style="display: none;">
                     <div>
                         <label class="block text-xs font-semibold text-earth-700 mb-1">Catatan Tambahan (Opsional)</label>
                         <textarea name="notes" rows="3" placeholder="Tambahkan rincian detail..." class="flora-input">{{ old('notes') }}</textarea>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-earth-700 mb-1">Bukti Struk / Transaksi (Opsional)</label>
-                        <div class="border-2 border-dashed border-sage-300 rounded-xl p-5 text-center hover:border-sage-400 transition-colors">
-                            <input type="file" name="attachment" id="attachment" accept="image/*" class="hidden" onchange="previewTxImage(this)">
-                            <label for="attachment" class="cursor-pointer">
-                                <x-icon name="add-seed" class="w-8 h-8 text-sage-400 mx-auto mb-2" />
-                                <p class="text-xs text-earth-600">Klik untuk upload foto struk / bukti transfer (PNG, JPG maks 3MB)</p>
-                            </label>
-                            <div id="txImagePreview" class="mt-3 hidden">
-                                <img id="txPreviewImg" src="" alt="Preview" class="max-w-xs max-h-48 mx-auto rounded-lg shadow-sm">
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -201,23 +187,4 @@
             </div>
         </form>
     </x-card>
-
-    @push('scripts')
-    <script>
-        function previewTxImage(input) {
-            const preview = document.getElementById('txImagePreview');
-            const previewImg = document.getElementById('txPreviewImg');
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    previewImg.src = e.target.result;
-                    preview.classList.remove('hidden');
-                }
-                reader.readAsDataURL(input.files[0]);
-            } else {
-                preview.classList.add('hidden');
-            }
-        }
-    </script>
-    @endpush
 </x-app-layout>

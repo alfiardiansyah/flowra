@@ -21,11 +21,10 @@
         $catName = $expense->category->name ?? $expense->kategori;
         $date = $expense->date ? $expense->date->format('Y-m-d') : ($expense->tanggal ? $expense->tanggal->format('Y-m-d') : '');
         $accId = $expense->account_id ?? null;
-        $proof = $expense->attachment ?? $expense->bukti_pembayaran;
     @endphp
 
     <x-card class="max-w-2xl mx-auto">
-        <form action="{{ route('expenses.update', $expense) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+        <form action="{{ route('expenses.update', $expense) }}" method="POST" class="space-y-6">
             @csrf
             @method('PUT')
 
@@ -73,20 +72,6 @@
                         @endforeach
                     </select>
                 </div>
-            </div>
-
-            <!-- Bukti Pembayaran -->
-            <div class="form-section pb-4">
-                <label class="form-section-title text-sm mb-2">Bukti Pembayaran (Opsional)</label>
-                @if($proof)
-                    <div class="mb-3 flex items-center gap-3 p-3 bg-sage-50 rounded-xl">
-                        <img src="{{ asset('storage/' . $proof) }}" alt="Bukti" class="w-16 h-16 object-cover rounded-lg border">
-                        <a href="{{ asset('storage/' . $proof) }}" target="_blank" class="text-xs text-sage-600 hover:underline">Lihat Gambar Bukti</a>
-                    </div>
-                @endif
-                <input type="file" name="bukti_pembayaran" accept="image/*" class="flora-input text-xs">
-            </div>
-
             <!-- Actions -->
             <div class="flex gap-3 justify-end pt-4 border-t border-sage-200">
                 <a href="{{ route('expenses.index') }}" class="btn-flora-secondary">Batal</a>

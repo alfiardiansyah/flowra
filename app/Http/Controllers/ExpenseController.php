@@ -68,15 +68,9 @@ class ExpenseController extends Controller
             'kategori' => 'nullable|string|max:100',
             'tanggal' => 'nullable|date',
             'metode_pembayaran' => 'nullable|string|max:100',
-            'bukti_pembayaran' => 'nullable|file|image|max:3072',
             'account_id' => 'nullable|exists:accounts,id',
             'category_id' => 'nullable|exists:categories,id',
         ]);
-
-        $attachment = null;
-        if ($request->hasFile('bukti_pembayaran')) {
-            $attachment = $request->file('bukti_pembayaran')->store('proofs', 'public');
-        }
 
         // Determine account
         $accountId = $data['account_id'] ?? null;
@@ -118,7 +112,6 @@ class ExpenseController extends Controller
                 'amount' => $data['nominal'],
                 'date' => $data['tanggal'] ?? now()->format('Y-m-d'),
                 'description' => $data['keterangan'] ?: ($data['kategori'] ?? 'Pengeluaran'),
-                'attachment' => $attachment,
             ]);
 
             return redirect()->route('expenses.index')->with('success', 'Pengeluaran berhasil dicatat di kebun keuangan Anda!');
@@ -148,7 +141,6 @@ class ExpenseController extends Controller
             'kategori' => 'nullable|string|max:100',
             'tanggal' => 'nullable|date',
             'metode_pembayaran' => 'nullable|string|max:100',
-            'bukti_pembayaran' => 'nullable|file|image|max:3072',
             'account_id' => 'nullable|exists:accounts,id',
             'category_id' => 'nullable|exists:categories,id',
         ]);
@@ -167,10 +159,6 @@ class ExpenseController extends Controller
         } elseif (!empty($data['kategori'])) {
             $cat = Category::forUser($user->id)->expense()->where('name', $data['kategori'])->first();
             if ($cat) $updateData['category_id'] = $cat->id;
-        }
-
-        if ($request->hasFile('bukti_pembayaran')) {
-            $updateData['attachment'] = $request->file('bukti_pembayaran')->store('proofs', 'public');
         }
 
         $this->transactionService->updateTransaction($expense, $updateData);

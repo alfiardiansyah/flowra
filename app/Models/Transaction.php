@@ -21,7 +21,6 @@ class Transaction extends Model
         'date',
         'description',
         'notes',
-        'attachment',
         'recurring_transaction_id',
         'debt_receivable_id',
     ];

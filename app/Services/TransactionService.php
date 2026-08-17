@@ -35,15 +35,10 @@ class TransactionService
             // 1. Revert previous balance impact
             $this->revertBalanceAdjustment($transaction);
 
-            // 2. Handle file replacement if any
-            if (isset($data['attachment']) && $transaction->attachment && $data['attachment'] !== $transaction->attachment) {
-                Storage::disk('public')->delete($transaction->attachment);
-            }
-
-            // 3. Update transaction record
+            // 2. Update transaction record
             $transaction->update($data);
 
-            // 4. Apply new balance impact
+            // 3. Apply new balance impact
             $this->applyBalanceAdjustment($transaction->fresh());
 
             return $transaction;
@@ -51,16 +46,12 @@ class TransactionService
     }
 
     /**
-     * Delete a transaction, revert balance adjustments, and delete attachments.
+     * Delete a transaction and revert balance adjustments.
      */
     public function deleteTransaction(Transaction $transaction): bool
     {
         return DB::transaction(function () use ($transaction) {
             $this->revertBalanceAdjustment($transaction);
-
-            if ($transaction->attachment) {
-                Storage::disk('public')->delete($transaction->attachment);
-            }
 
             return $transaction->delete();
         });

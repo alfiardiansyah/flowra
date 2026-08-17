@@ -68,15 +68,9 @@ class IncomeController extends Controller
             'kategori' => 'nullable|string|max:100',
             'tanggal' => 'nullable|date',
             'nama_bank' => 'nullable|string|max:100',
-            'bukti_transfer' => 'nullable|file|image|max:3072',
             'account_id' => 'nullable|exists:accounts,id',
             'category_id' => 'nullable|exists:categories,id',
         ]);
-
-        $attachment = null;
-        if ($request->hasFile('bukti_transfer')) {
-            $attachment = $request->file('bukti_transfer')->store('proofs', 'public');
-        }
 
         // Determine account
         $accountId = $data['account_id'] ?? null;
@@ -118,7 +112,6 @@ class IncomeController extends Controller
                 'amount' => $data['nominal'],
                 'date' => $data['tanggal'] ?? now()->format('Y-m-d'),
                 'description' => $data['keterangan'] ?: ($data['kategori'] ?? 'Pemasukan'),
-                'attachment' => $attachment,
             ]);
 
             return redirect()->route('incomes.index')->with('success', 'Pemasukan berhasil dicatat di kebun keuangan Anda!');
@@ -148,7 +141,6 @@ class IncomeController extends Controller
             'kategori' => 'nullable|string|max:100',
             'tanggal' => 'nullable|date',
             'nama_bank' => 'nullable|string|max:100',
-            'bukti_transfer' => 'nullable|file|image|max:3072',
             'account_id' => 'nullable|exists:accounts,id',
             'category_id' => 'nullable|exists:categories,id',
         ]);
@@ -167,10 +159,6 @@ class IncomeController extends Controller
         } elseif (!empty($data['kategori'])) {
             $cat = Category::forUser($user->id)->income()->where('name', $data['kategori'])->first();
             if ($cat) $updateData['category_id'] = $cat->id;
-        }
-
-        if ($request->hasFile('bukti_transfer')) {
-            $updateData['attachment'] = $request->file('bukti_transfer')->store('proofs', 'public');
         }
 
         $this->transactionService->updateTransaction($income, $updateData);

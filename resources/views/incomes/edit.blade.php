@@ -21,11 +21,10 @@
         $catName = $income->category->name ?? $income->kategori;
         $date = $income->date ? $income->date->format('Y-m-d') : ($income->tanggal ? $income->tanggal->format('Y-m-d') : '');
         $accId = $income->account_id ?? null;
-        $proof = $income->attachment ?? $income->bukti_transfer;
     @endphp
 
     <x-card class="max-w-2xl mx-auto">
-        <form action="{{ route('incomes.update', $income) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+        <form action="{{ route('incomes.update', $income) }}" method="POST" class="space-y-6">
             @csrf
             @method('PUT')
 
@@ -73,20 +72,6 @@
                         @endforeach
                     </select>
                 </div>
-            </div>
-
-            <!-- Bukti Transfer -->
-            <div class="form-section pb-4">
-                <label class="form-section-title text-sm mb-2">Bukti Transfer (Opsional)</label>
-                @if($proof)
-                    <div class="mb-3 flex items-center gap-3 p-3 bg-sage-50 rounded-xl">
-                        <img src="{{ asset('storage/' . $proof) }}" alt="Bukti" class="w-16 h-16 object-cover rounded-lg border">
-                        <a href="{{ asset('storage/' . $proof) }}" target="_blank" class="text-xs text-sage-600 hover:underline">Lihat Gambar Bukti</a>
-                    </div>
-                @endif
-                <input type="file" name="bukti_transfer" accept="image/*" class="flora-input text-xs">
-            </div>
-
             <!-- Actions -->
             <div class="flex gap-3 justify-end pt-4 border-t border-sage-200">
                 <a href="{{ route('incomes.index') }}" class="btn-flora-secondary">Batal</a>

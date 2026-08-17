@@ -131,7 +131,6 @@ class TransactionController extends Controller
             'date' => 'required|date',
             'description' => 'required|string|max:255',
             'notes' => 'nullable|string|max:1000',
-            'attachment' => 'nullable|file|image|max:3072',
         ], [
             'destination_account_id.different' => 'Rekening tujuan transfer tidak boleh sama dengan rekening asal.',
             'destination_account_id.required' => 'Rekening tujuan wajib dipilih untuk transaksi transfer.',
@@ -141,10 +140,6 @@ class TransactionController extends Controller
         $sourceAccount = Account::where('id', $validated['account_id'])->where('user_id', $user->id)->firstOrFail();
         if ($isTransfer && !empty($validated['destination_account_id'])) {
             Account::where('id', $validated['destination_account_id'])->where('user_id', $user->id)->firstOrFail();
-        }
-
-        if ($request->hasFile('attachment')) {
-            $validated['attachment'] = $request->file('attachment')->store('proofs', 'public');
         }
 
         try {
@@ -202,7 +197,6 @@ class TransactionController extends Controller
             'date' => 'required|date',
             'description' => 'required|string|max:255',
             'notes' => 'nullable|string|max:1000',
-            'attachment' => 'nullable|file|image|max:3072',
         ], [
             'destination_account_id.different' => 'Rekening tujuan transfer tidak boleh sama dengan rekening asal.',
         ]);
@@ -211,10 +205,6 @@ class TransactionController extends Controller
         Account::where('id', $validated['account_id'])->where('user_id', $user->id)->firstOrFail();
         if ($isTransfer && !empty($validated['destination_account_id'])) {
             Account::where('id', $validated['destination_account_id'])->where('user_id', $user->id)->firstOrFail();
-        }
-
-        if ($request->hasFile('attachment')) {
-            $validated['attachment'] = $request->file('attachment')->store('proofs', 'public');
         }
 
         try {

@@ -239,7 +239,6 @@
                             'account_name' => $tx->account->name ?? '-',
                             'account_icon' => $tx->account->icon ?? 'cash-leaf',
                             'destination_account_name' => $tx->destinationAccount->name ?? null,
-                            'attachment_url' => $tx->attachment ? asset('storage/' . $tx->attachment) : null,
                             'edit_url' => route('transactions.edit', $tx),
                             'delete_url' => route('transactions.destroy', $tx),
                         ];
@@ -337,7 +336,6 @@
                                     'account_name' => $tx->account->name ?? '-',
                                     'account_icon' => $tx->account->icon ?? 'cash-leaf',
                                     'destination_account_name' => $tx->destinationAccount->name ?? null,
-                                    'attachment_url' => $tx->attachment ? asset('storage/' . $tx->attachment) : null,
                                     'edit_url' => route('transactions.edit', $tx),
                                     'delete_url' => route('transactions.destroy', $tx),
                                 ];
@@ -485,13 +483,6 @@
                             <div x-show="activeTx && activeTx.notes" class="py-2 border-b border-sage-100">
                                 <span class="text-earth-500 block mb-1">Catatan Tambahan:</span>
                                 <p class="text-earth-700 italic bg-sage-50 p-2.5 rounded-xl border border-sage-200" x-text="activeTx ? activeTx.notes : ''"></p>
-                            </div>
-
-                            <div x-show="activeTx && activeTx.attachment_url" class="pt-2">
-                                <span class="text-earth-500 block mb-2">Bukti Transaksi:</span>
-                                <a :href="activeTx ? activeTx.attachment_url : '#'" target="_blank" class="inline-flex items-center gap-2 btn-flora-secondary text-xs py-2 px-3">
-                                    <span>📎 Lihat Lampiran Bukti</span>
-                                </a>
                             </div>
                         </div>
 
