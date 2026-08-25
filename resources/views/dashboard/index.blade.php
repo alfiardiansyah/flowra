@@ -14,7 +14,6 @@
                     @endif
                 </p>
             </div>
-            </div>
 
             <div class="flex flex-wrap items-center gap-2.5">
                 <!-- Account Filter Selector -->
