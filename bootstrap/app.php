@@ -93,6 +93,25 @@ $app = Application::configure(basePath: dirname(__DIR__))
 
             return redirect()->route('dashboard')->with('error', 'Anda tidak memiliki hak akses ke halaman tersebut.');
         });
+
+        // Handle 419 Page Expired / CSRF Token Mismatch Exception
+        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, Request $request) {
+            if ($request->wantsJson() || $request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'message' => 'Sesi formulir Anda telah berakhir. Silakan muat ulang halaman atau login kembali.',
+                    'redirect' => route('login'),
+                ], 419);
+            }
+
+            if (auth()->check()) {
+                return redirect()->back()
+                    ->withInput($request->except('_token'))
+                    ->with('error', 'Sesi formulir telah kadaluarsa. Silakan coba kirim ulang.');
+            }
+
+            return redirect()->route('login')
+                ->with('info', 'Sesi Anda telah berakhir. Silakan login kembali.');
+        });
     })->create();
 
 // Dynamic storage path if APP_STORAGE_PATH is specified

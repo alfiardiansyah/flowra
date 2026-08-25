@@ -48,10 +48,13 @@ class BudgetService
             }
         }
 
+        $startOfMonth = Carbon::parse($month . '-01')->startOfMonth()->format('Y-m-d');
+        $endOfMonth = Carbon::parse($month . '-01')->endOfMonth()->format('Y-m-d');
+
         $spentGrouped = Transaction::where('user_id', $user->id)
             ->where('type', 'expense')
             ->whereIn('category_id', $allTargetCategoryIds->unique()->values()->toArray())
-            ->where('date', 'like', $month . '%')
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
             ->selectRaw('category_id, SUM(amount) as total')
             ->groupBy('category_id')
             ->pluck('total', 'category_id');

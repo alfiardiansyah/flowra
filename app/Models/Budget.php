@@ -55,10 +55,13 @@ class Budget extends Model
         $subCategoryIds = Category::where('parent_id', $categoryId)->pluck('id')->toArray();
         $allCategoryIds = array_merge($categoryIds, $subCategoryIds);
 
+        $startOfMonth = \Carbon\Carbon::parse($month . '-01')->startOfMonth()->format('Y-m-d');
+        $endOfMonth = \Carbon\Carbon::parse($month . '-01')->endOfMonth()->format('Y-m-d');
+
         return $this->spentAmountCache = (float) Transaction::where('user_id', $userId)
             ->where('type', 'expense')
             ->whereIn('category_id', $allCategoryIds)
-            ->where('date', 'like', $month . '%')
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
             ->sum('amount');
     }
 

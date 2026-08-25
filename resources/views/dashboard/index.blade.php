@@ -1,22 +1,47 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-                <h2 class="font-heading text-3xl text-sage-600 flex items-center gap-3">
-                    <x-icon name="tree" class="w-8 h-8 text-sage-400 animate-leaf-sway" />
+                <h2 class="font-heading text-2xl sm:text-3xl text-sage-600 flex items-center gap-2.5">
+                    <x-icon name="tree" class="w-7 h-7 sm:w-8 sm:h-8 text-sage-400 animate-leaf-sway" />
                     Selamat Datang, {{ Auth::user()->name }}!
                 </h2>
-                <p class="mt-1 text-earth-600 text-sm">Ikhtisar taman keuangan Anda hari ini</p>
+                <p class="mt-0.5 text-earth-600 text-xs sm:text-sm">
+                    @if($selectedAccount)
+                        Ikhtisar keuangan khusus untuk rekening <span class="font-bold text-sage-700">{{ $selectedAccount->name }}</span>
+                    @else
+                        Ikhtisar taman keuangan Anda hari ini
+                    @endif
+                </p>
             </div>
-            <div class="flex items-center gap-3">
-                <button @click="$dispatch('open-quick-transaction')" class="btn-flora-primary flex items-center gap-2 text-sm">
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2.5">
+                <!-- Account Filter Selector -->
+                <form method="GET" action="{{ route('dashboard') }}" x-ref="accountFilterForm" class="flex items-center gap-1.5">
+                    <div class="relative flex items-center">
+                        <select name="account_id" @change="$refs.accountFilterForm.submit()"
+                                class="flora-input text-xs py-2 px-3 pr-8 bg-white font-semibold text-sage-800 border-sage-200 shadow-sm rounded-xl">
+                            <option value="">-- Semua Akun / Rekening --</option>
+                            @foreach($accounts as $acc)
+                                <option value="{{ $acc->id }}" {{ (string)$selectedAccountId === (string)$acc->id ? 'selected' : '' }}>
+                                    {{ $acc->name }} (Rp {{ number_format($acc->current_balance, 0, ',', '.') }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @if($selectedAccountId)
+                        <a href="{{ route('dashboard') }}" class="btn-flora-secondary text-xs py-2 px-2.5 flex items-center gap-1" title="Reset Filter">
+                            <x-icon name="delete-wilt" class="w-3.5 h-3.5 text-coral-500" />
+                            <span>Reset</span>
+                        </a>
+                    @endif
+                </form>
+
+                <button @click="$dispatch('open-quick-transaction')" class="btn-flora-primary flex items-center gap-2 text-xs sm:text-sm py-2 px-3.5 shadow-sm">
                     <x-icon name="add-seed" class="w-4 h-4 text-white" />
                     <span>+ Catat Transaksi</span>
                 </button>
-                <div class="hidden md:flex items-center gap-2 text-sage-500 bg-white/70 px-3 py-2 rounded-xl border border-sage-200 text-xs font-medium">
-                    <x-icon name="flower" class="w-4 h-4" />
-                    <span>{{ now()->locale('id')->isoFormat('dddd, D MMMM Y') }}</span>
-                </div>
             </div>
         </div>
     </x-slot>
@@ -30,7 +55,9 @@
             </div>
             <div class="relative z-10">
                 <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-sage-700">Total Kekayaan Bersih</span>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-sage-700">
+                        {{ $selectedAccount ? 'Saldo Rekening Ini' : 'Total Kekayaan Bersih' }}
+                    </span>
                     <x-icon name="tree" class="w-6 h-6 text-sage-500" />
                 </div>
                 <div class="text-2xl font-bold text-sage-700 mb-1">
@@ -125,8 +152,8 @@
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
             @foreach($accounts->take(4) as $acc)
-                <a href="{{ route('accounts.show', $acc) }}" 
-                   class="flora-card p-3.5 hover:shadow-flora-lg hover:-translate-y-0.5 transition-all duration-200 block border-l-4"
+                <a href="{{ route('dashboard', ['account_id' => $acc->id]) }}"
+                   class="flora-card p-3.5 hover:shadow-flora-lg hover:-translate-y-0.5 transition-all duration-200 block border-l-4 {{ (string)$selectedAccountId === (string)$acc->id ? 'ring-2 ring-sage-500 bg-sage-50/60' : '' }}"
                    style="border-left-color: {{ $acc->color }}">
                     <div class="flex items-center justify-between mb-1.5">
                         <x-icon :name="$acc->icon" class="w-5 h-5" />
@@ -330,7 +357,7 @@
                     <x-icon name="flower" class="w-6 h-6 text-sage-400" />
                     Transaksi Terbaru
                 </h3>
-                <p class="text-xs text-earth-500 mt-0.5">Aktivitas keuangan terakhir di kebun Anda</p>
+                <p class="text-xs text-earth-500 mt-0.5">Klik pada transaksi untuk melihat rincian detail</p>
             </div>
             <div class="flex items-center gap-3">
                 <button @click="$dispatch('open-quick-transaction')" class="btn-flora-secondary text-xs">
@@ -345,7 +372,8 @@
         @if($recent && $recent->count() > 0)
             <div class="space-y-3">
                 @foreach($recent as $transaction)
-                    <div class="transaction-card {{ $transaction->type }} p-4 rounded-xl flex items-center justify-between hover:bg-sage-50/50 transition-colors">
+                    <div @click="$dispatch('open-transaction-detail', { id: {{ $transaction->id }} })"
+                         class="transaction-card {{ $transaction->type }} p-4 rounded-xl flex items-center justify-between hover:bg-sage-50 transition-all duration-150 cursor-pointer group">
                         <div class="flex items-center gap-4">
                             <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 {{ $transaction->type === 'income' ? 'bg-mint-100 text-leaf-600' : ($transaction->type === 'expense' ? 'bg-coral-100 text-coral-600' : 'bg-sky-100 text-sky-600') }}">
                                 @if($transaction->type === 'income')
@@ -357,7 +385,7 @@
                                 @endif
                             </div>
                             <div>
-                                <div class="font-semibold text-sm text-earth-800">{{ $transaction->description }}</div>
+                                <div class="font-semibold text-sm text-earth-800 group-hover:text-sage-700 transition-colors">{{ $transaction->description }}</div>
                                 <div class="text-xs text-earth-500 flex items-center gap-2 mt-0.5">
                                     <span>{{ $transaction->category->name ?? ($transaction->type === 'transfer' ? 'Transfer Antar Rekening' : 'Umum') }}</span>
                                     <span>•</span>
@@ -390,6 +418,9 @@
                 action-label="+ Catat Transaksi Pertama" />
         @endif
     </x-card>
+
+    <!-- Transaction Detail Modal Component -->
+    <x-transaction-detail-modal />
 
     @push('scripts')
     <script>

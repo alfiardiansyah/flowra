@@ -165,6 +165,46 @@ class TransactionController extends Controller
         }
     }
 
+    public function show(Request $request, Transaction $transaction)
+    {
+        $this->authorizeTransaction($transaction);
+
+        $transaction->load(['account', 'destinationAccount', 'category']);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'transaction' => [
+                    'id' => $transaction->id,
+                    'type' => $transaction->type,
+                    'type_label' => match ($transaction->type) {
+                        'income' => 'Pemasukan',
+                        'expense' => 'Pengeluaran',
+                        'transfer' => 'Transfer Antar Rekening',
+                        default => ucfirst($transaction->type),
+                    },
+                    'amount' => (float) $transaction->amount,
+                    'formatted_amount' => $transaction->formatted_amount,
+                    'description' => $transaction->description,
+                    'notes' => $transaction->notes,
+                    'date' => $transaction->date ? $transaction->date->format('d M Y') : '-',
+                    'raw_date' => $transaction->date ? $transaction->date->format('Y-m-d') : null,
+                    'created_at' => $transaction->created_at ? $transaction->created_at->format('d M Y, HH:mm') . ' WIB' : '-',
+                    'account_name' => $transaction->account->name ?? '-',
+                    'account_icon' => $transaction->account->icon ?? 'cash-leaf',
+                    'destination_account_name' => $transaction->destinationAccount->name ?? '-',
+                    'destination_account_icon' => $transaction->destinationAccount->icon ?? 'cash-leaf',
+                    'category_name' => $transaction->category->name ?? ($transaction->type === 'transfer' ? 'Transfer' : 'Umum'),
+                    'category_icon' => $transaction->category->icon ?? ($transaction->type === 'income' ? 'sprout' : ($transaction->type === 'expense' ? 'falling-leaves' : 'transfer')),
+                    'edit_url' => route('transactions.edit', $transaction),
+                    'delete_url' => route('transactions.destroy', $transaction),
+                ],
+            ]);
+        }
+
+        return view('transactions.show', compact('transaction'));
+    }
+
     public function edit(Transaction $transaction)
     {
         $this->authorizeTransaction($transaction);
