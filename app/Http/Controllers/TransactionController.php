@@ -26,9 +26,14 @@ class TransactionController extends Controller
             $query->where('type', $request->type);
         }
 
-        // Filter: Account
+        // Filter: Account (with Tenant Isolation Validation)
         if ($request->filled('account_id')) {
-            $accId = $request->account_id;
+            $accId = (int) $request->account_id;
+            $accountOwned = Account::where('id', $accId)->where('user_id', $user->id)->exists();
+            if (!$accountOwned) {
+                abort(403, 'Akses rekening tidak diizinkan.');
+            }
+
             $query->where(function ($q) use ($accId) {
                 $q->where('account_id', $accId)
                   ->orWhere('destination_account_id', $accId);

@@ -400,11 +400,22 @@
                 {{ $transactions->links() }}
             </div>
         @else
-            <x-empty-state 
-                title="Tidak Ada Transaksi Ditemukan" 
-                description="Coba ubah filter pencarian Anda atau tambahkan transaksi baru ke kebun Anda."
-                :action="route('transactions.create')"
-                action-label="+ Tambah Transaksi Sekarang" />
+            @php
+                $selectedAccObj = request('account_id') ? $accounts->firstWhere('id', request('account_id')) : null;
+            @endphp
+            @if($selectedAccObj)
+                <x-empty-state
+                    title="Belum Ada Transaksi pada {{ $selectedAccObj->name }}"
+                    description="Tidak ada catatan transaksi yang ditemukan pada rekening yang Anda pilih."
+                    :action="route('transactions.create', ['account_id' => $selectedAccObj->id])"
+                    action-label="+ Catat Transaksi di Rekening Ini" />
+            @else
+                <x-empty-state
+                    title="Tidak Ada Transaksi Ditemukan"
+                    description="Coba ubah filter pencarian Anda atau tambahkan transaksi baru ke kebun Anda."
+                    :action="route('transactions.create')"
+                    action-label="+ Tambah Transaksi Sekarang" />
+            @endif
         @endif
 
         <!-- ================= MODALS & ACTION SHEETS ================= -->
